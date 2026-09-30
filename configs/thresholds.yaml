@@ -1,0 +1,13 @@
+# Thresholds for extreme events (IMD definitions placeholder)
+# Rain in mm/24h
+precipitation:
+  heavy: 64.5
+  very_heavy: 115.6
+  extremely_heavy: 204.5
+
+# Heatwave departure from normal
+heatwave:
+  plains_departure: 4.5
+  coastal_departure: 4.5
+  hill_departure: 4.5
+  plains_absolute: 40.0

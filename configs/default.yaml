@@ -1,0 +1,20 @@
+# Default configuration for the NWP Blending System
+domain:
+  lat_min: 6
+  lat_max: 37
+  lon_min: 68
+  lon_max: 98
+  resolution: 0.25
+
+models:
+  - ecmwf_ifs
+  - gfs
+  - aifs
+
+variables:
+  - precip
+  - t2m
+  - wind10m
+  - gust10m
+
+lead_times_days: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]

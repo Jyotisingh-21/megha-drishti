@@ -1,0 +1,50 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nwpblend"
+version = "0.1.0"
+description = "Hybrid AI-NWP Forecast Blending System"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "numpy",
+    "pandas",
+    "xarray",
+    "zarr",
+    "dask",
+    "netCDF4",
+    "cfgrib",
+    "scipy",
+    "scikit-learn",
+    "statsmodels",
+    "lightgbm",
+    "torch",
+    "shap",
+    "minisom",
+    "pyyaml",
+    "matplotlib",
+    "fastapi",
+    "uvicorn",
+    "streamlit",
+    "requests",
+    "s3fs",
+    "gcsfs",
+    "ecmwf-opendata",
+    "imdlib"
+]
+
+[project.optional-dependencies]
+regrid = ["xesmf"]
+dev = [
+    "pytest",
+    "ruff",
+    "pytest-cov"
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
