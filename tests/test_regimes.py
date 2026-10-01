@@ -39,7 +39,7 @@ def test_regime_clustering():
     # Skip assertion if we are using the tiny random mock data (len 10)
     if len(truth.time) > 10:
         assert ari > 0.1, f"ARI {ari} is too low, clustering failed to recover synthetic regimes"
-    
+
     # Check deterministic predict
     predicted_labels_2 = clusterer.predict(truth).values
     np.testing.assert_array_equal(predicted_labels, predicted_labels_2)
