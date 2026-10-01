@@ -60,10 +60,11 @@ def ewa(
             weights = weights / weights.sum(dim="model")
 
             for var in models.data_vars:
-                if var == "available": continue
-                blended[var].loc[{"time": t}] = (masked_models[var].sel(time=t) * weights).sum(
-                    dim="model", skipna=True
-                ).values
+                if var == "available":
+                    continue
+                blended[var].loc[{"time": t}] = (
+                    (masked_models[var].sel(time=t) * weights).sum(dim="model", skipna=True).values
+                )
             continue
 
         if len(hist_models.time) == 0:
@@ -73,10 +74,14 @@ def ewa(
             weights = weights / weights.sum(dim="model")
 
             for var in models.data_vars:
-                if var == "available": continue
-                if var == "available": continue
-                
-                val = (masked_models[var].sel(time=t) * weights).sum(dim="model", skipna=True).values
+                if var == "available":
+                    continue
+                if var == "available":
+                    continue
+
+                val = (
+                    (masked_models[var].sel(time=t) * weights).sum(dim="model", skipna=True).values
+                )
                 blended[var].loc[{"time": t}] = val
             continue
 
@@ -86,7 +91,8 @@ def ewa(
         # Broadcast truth to match leads
 
         for var in models.data_vars:
-            if var == "available": continue
+            if var == "available":
+                continue
             err = np.abs(hist_models[var] - hist_truth[var])
             mae = err.mean(dim="time")  # (lead, lat, lon, model)
 
@@ -101,9 +107,9 @@ def ewa(
             w = w / w.sum(dim="model")
 
             # Apply
-            blended[var].loc[{"time": t}] = (masked_models[var].sel(time=t) * w).sum(
-                dim="model", skipna=True
-            ).values
+            blended[var].loc[{"time": t}] = (
+                (masked_models[var].sel(time=t) * w).sum(dim="model", skipna=True).values
+            )
 
     return blended
 
@@ -137,10 +143,11 @@ def bma(
             weights = weights.where(available.sel(time=t), 0.0)
             weights = weights / weights.sum(dim="model")
             for var in models.data_vars:
-                if var == "available": continue
-                blended[var].loc[{"time": t}] = (masked_models[var].sel(time=t) * weights).sum(
-                    dim="model", skipna=True
-                ).values
+                if var == "available":
+                    continue
+                blended[var].loc[{"time": t}] = (
+                    (masked_models[var].sel(time=t) * weights).sum(dim="model", skipna=True).values
+                )
             continue
 
         if len(hist_models.time) < 2:
@@ -148,14 +155,16 @@ def bma(
             weights = weights.where(available.sel(time=t), 0.0)
             weights = weights / weights.sum(dim="model")
             for var in models.data_vars:
-                if var == "available": continue
-                blended[var].loc[{"time": t}] = (masked_models[var].sel(time=t) * weights).sum(
-                    dim="model", skipna=True
-                ).values
+                if var == "available":
+                    continue
+                blended[var].loc[{"time": t}] = (
+                    (masked_models[var].sel(time=t) * weights).sum(dim="model", skipna=True).values
+                )
             continue
 
         for var in models.data_vars:
-            if var == "available": continue
+            if var == "available":
+                continue
             err = hist_models[var] - hist_truth[var]
             mse = (err**2).mean(dim="time")
 
@@ -166,8 +175,8 @@ def bma(
             w = w.where(curr_avail, 0.0)
             w = w / w.sum(dim="model")
 
-            blended[var].loc[{"time": t}] = (masked_models[var].sel(time=t) * w).sum(
-                dim="model", skipna=True
-            ).values
+            blended[var].loc[{"time": t}] = (
+                (masked_models[var].sel(time=t) * w).sum(dim="model", skipna=True).values
+            )
 
     return blended

@@ -24,11 +24,11 @@ class QuantileMapper:
         if is_precip:
             truth_wet = truth[truth >= self.precip_threshold]
             p_wet_truth = len(truth_wet) / len(truth) if len(truth) > 0 else 0.0
-            
+
             if p_wet_truth > 0:
                 fcst_thresh = np.quantile(fcst, max(0.0, 1.0 - p_wet_truth))
                 fcst_wet_adj = fcst[fcst >= fcst_thresh]
-                
+
                 if len(fcst_wet_adj) > 0:
                     q_fcst = np.quantile(fcst_wet_adj, self.quantiles)
                     q_truth = np.quantile(truth_wet, self.quantiles)
@@ -39,12 +39,8 @@ class QuantileMapper:
                 fcst_thresh = np.inf
                 q_fcst = np.zeros_like(self.quantiles)
                 q_truth = np.zeros_like(self.quantiles)
-                
-            return {
-                "fcst_thresh": fcst_thresh,
-                "q_fcst": q_fcst,
-                "q_truth": q_truth
-            }
+
+            return {"fcst_thresh": fcst_thresh, "q_fcst": q_fcst, "q_truth": q_truth}
         else:
             q_fcst = np.quantile(fcst, self.quantiles)
             q_truth = np.quantile(truth, self.quantiles)

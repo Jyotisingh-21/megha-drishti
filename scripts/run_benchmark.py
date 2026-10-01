@@ -25,8 +25,10 @@ def main():
     try:
         truth = xr.open_zarr("data/demo/truth.zarr").load()
         import os
+
         if not os.path.exists("data/processed/stacked_models.zarr"):
             from nwpblend.harmonise.store import stack_models, write_store
+
             logger.info("Stacked models not found. Stacking demo data now...")
             expected = ["ecmwf_ifs", "gfs", "aifs", "ncum_g", "graphcast", "pangu"]
             m_dict = {}
@@ -35,12 +37,12 @@ def main():
                     m_dict[m] = xr.open_zarr(f"data/demo/models/{m}.zarr").load()
                 except Exception:
                     logger.warning(f"Demo model {m} not found.")
-            
+
             if m_dict:
                 stacked = stack_models(m_dict, expected)
                 os.makedirs("data/processed", exist_ok=True)
                 write_store(stacked, "data/processed/stacked_models.zarr")
-                
+
         models = xr.open_zarr("data/processed/stacked_models.zarr").load()
     except Exception as e:
         logger.error(f"Failed to load stacked models or truth. Ensure Prompt 1 is run. {e}")
