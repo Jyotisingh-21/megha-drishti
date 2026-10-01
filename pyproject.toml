@@ -40,7 +40,8 @@ regrid = ["xesmf"]
 dev = [
     "pytest",
     "ruff",
-    "pytest-cov"
+    "pytest-cov",
+    "httpx"
 ]
 
 [tool.setuptools.packages.find]
