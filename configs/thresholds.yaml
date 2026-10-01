@@ -1,13 +1,24 @@
-# Thresholds for extreme events (IMD definitions placeholder)
-# Rain in mm/24h
-precipitation:
+# Official IMD thresholds for extreme events
+# Source for precipitation & heatwave: 
+# "Standard Operation Procedure for Weather Forecasting", IMD (2021) 
+# and official IMD glossaries (https://internal.imd.gov.in/section/nhac/termglossary.pdf)
+
+precip_mm_24h:
   heavy: 64.5
   very_heavy: 115.6
   extremely_heavy: 204.5
 
-# Heatwave departure from normal
-heatwave:
-  plains_departure: 4.5
-  coastal_departure: 4.5
-  hill_departure: 4.5
-  plains_absolute: 40.0
+heatwave_celsius:
+  # Absolute thresholds for max temperature
+  absolute:
+    plains: 40.0
+    coastal: 37.0
+    hilly: 30.0
+  # Departure from normal
+  departure:
+    heatwave: 4.5
+    severe_heatwave: 6.4
+
+wind_gusts_kmh:
+  strong: 30.0
+  gale: 62.0

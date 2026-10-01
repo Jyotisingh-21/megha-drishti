@@ -144,7 +144,7 @@ class EMOSCalibrator:
                 # If q_adj <= 0, quantile is 0
                 q_adj = np.clip(q_adj, 1e-6, 1.0 - 1e-6)
                 z = norm.ppf(q_adj)
-                val = np.maximum(0.0, mu + sigma * z)**2
+                val = np.maximum(0.0, mu + sigma * z) ** 2
                 return np.where(q <= (1.0 - prob_rain), 0.0, val)
 
             q10 = _quantile(0.10)
