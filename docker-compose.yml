@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  pipeline:
+    build: 
+      context: .
+      dockerfile: docker/Dockerfile
+    image: megha-drishti:latest
+    container_name: md-pipeline
+    # This runs once and exits. For cron scheduling, you can run this container periodically.
+    command: ["python", "scripts/run_daily.py", "--demo"]
+    volumes:
+      - md-data:/app/data
+
+  api:
+    image: megha-drishti:latest
+    container_name: md-api
+    command: ["uvicorn", "nwpblend.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    ports:
+      - "8000:8000"
+    volumes:
+      - md-data:/app/data
+    depends_on:
+      - pipeline
+
+  dashboard:
+    image: megha-drishti:latest
+    container_name: md-dashboard
+    command: ["streamlit", "run", "dashboard/app.py", "--server.port", "8501", "--server.address", "0.0.0.0"]
+    ports:
+      - "8501:8501"
+    volumes:
+      - md-data:/app/data
+    depends_on:
+      - api
+
+volumes:
+  md-data:

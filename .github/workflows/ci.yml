@@ -25,3 +25,11 @@ jobs:
     - name: Test with pytest
       run: |
         pytest -q
+        
+    - name: End-to-end smoke test
+      run: |
+        python scripts/run_daily.py --demo
+
+    - name: Test Docker build
+      run: |
+        docker build -t megha-drishti:latest -f docker/Dockerfile .
