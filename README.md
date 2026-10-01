@@ -142,8 +142,8 @@ python scripts/run_daily.py --date 2024-07-30 --domain india
 |---|---|---|
 | 1 · Data + baseline | Ingest, regrid, bias-correct; equal-weight, EWA and BMA baselines | ✅ |
 | 2 · Adaptive + probabilistic | Regimes, gating network, EMOS calibration | ✅ |
-| 3 · Extremes + verification | Threshold probabilities, event replay, ablation | ☐ |
-| 4 · Deploy | Dashboard, FastAPI, GRIB2 export, Docker, scheduler | ☐ |
+| 3 · Extremes + verification | Threshold probabilities, event replay, ablation | ✅ |
+| 4 · Deploy | Dashboard, FastAPI, GRIB2 export, Docker, scheduler | ✅ |
 
 ## 10. Risks and mitigations
 
