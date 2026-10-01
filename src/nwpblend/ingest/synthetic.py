@@ -35,6 +35,13 @@ def generate_synthetic_data(
     # 2. Generate Truth
     # Precip: gamma distributed, mostly zeros
     precip_base = np.random.gamma(shape=2.0, scale=10.0, size=(days, len(lats), len(lons)))
+
+    # Modulate by regime (0: active, 1: break, 2: WD, 3: other)
+    regime_precip_mult = np.ones((days, 1, 1))
+    regime_precip_mult[regime_labels == 0] = 3.0
+    regime_precip_mult[regime_labels == 1] = 0.2
+    precip_base = precip_base * regime_precip_mult
+
     zero_mask = np.random.rand(days, len(lats), len(lons)) > 0.3
     precip_base[zero_mask] = 0.0
 
@@ -49,6 +56,10 @@ def generate_synthetic_data(
         + 10.0 * np.cos(np.deg2rad(lat2d - 20))
         + np.random.normal(0, 2, size=(days, len(lats), len(lons)))
     )
+
+    wd_cooling = np.zeros((days, 1, 1))
+    wd_cooling[regime_labels == 2] = -5.0
+    t2m_truth = t2m_truth + wd_cooling
 
     # Winds
     wind_truth = np.random.weibull(2.0, size=(days, len(lats), len(lons))) * 5.0
