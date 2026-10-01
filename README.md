@@ -1,4 +1,7 @@
-# Hybrid AI–NWP Forecast Blending System
+# Megha-Drishti: Hybrid AI–NWP Forecast Blending System
+
+[![CI Status](https://github.com/Jyotisingh-21/megha-drishti/actions/workflows/ci.yml/badge.svg)](https://github.com/Jyotisingh-21/megha-drishti/actions)
+[![Python 3.11](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/downloads/release/python-3110/)
 
 > **SIH 2026 · PS 26081 · MoES – NCMRWF**
 > An adaptive, explainable framework that learns *where, when and for which weather regime* each forecast model is trustworthy, and blends physical NWP, ensembles and AI weather models into one calibrated forecast with extreme-event probabilities.
@@ -101,7 +104,7 @@ No single forecast system wins everywhere. Skill changes with region, season, le
 
 ```bash
 # 1. Clone and set up
-git clone https://github.com/<your-username>/hybrid-nwp-blend.git
+git clone https://github.com/Jyotisingh-21/megha-drishti.git
 cd hybrid-nwp-blend
 python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -e ".[dev]"
@@ -134,7 +137,7 @@ python scripts/run_daily.py --date 2024-07-30 --domain india
 - **Ablation:** raw → + bias correction → + regimes → + gating → + EMOS, showing what each part adds.
 - **Event replay:** Wayanad landslides 2024, Cyclone Biparjoy 2023, Cyclone Remal 2024, Delhi heatwave 2024.
 
-> **Targets vs results.** The design targets (10–15% lower rainfall RMSE than the best single model, 15–25% higher CSI for heavy rain) are targets to be checked in our benchmark. Measured numbers go in `docs/results.md` and are copied here only after they are reproduced by `scripts/run_benchmark.py`.
+> **Targets vs results.** NOTE: The design targets (10–15% lower rainfall RMSE than the best single model, 15–25% higher CSI for heavy rain) are design objectives. **The current metrics available in this repository (`docs/results_demo.md`) are generated using statistically mocked synthetic data (as NCMRWF datasets are firewalled). They demonstrate that the mathematical pipeline is structurally sound, but they do NOT reflect verified real-world meteorological skill scores.**
 
 ## 9. Roadmap
 
