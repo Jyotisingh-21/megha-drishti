@@ -1,10 +1,22 @@
 # Default configuration for the NWP Blending System
 domain:
-  lat_min: 6
-  lat_max: 37
-  lon_min: 68
-  lon_max: 98
+  # Preset 1: Kerala + Karnataka (default)
+  lat_min: 8
+  lat_max: 19
+  lon_min: 74
+  lon_max: 78.6
   resolution: 0.25
+
+# Preset 2: Delhi/Indo-Gangetic Plain heat
+domain_igp:
+  lat_min: 25
+  lat_max: 32
+  lon_min: 73
+  lon_max: 85
+  resolution: 0.25
+
+archive_retention_days: 14
+ecmwf_mirrors: ["aws", "google", "ecmwf", "azure"]
 
 models:
   - ecmwf_ifs

@@ -116,8 +116,14 @@ python scripts/run_daily.py --demo
 uvicorn src.nwpblend.api.main:app --reload         # http://localhost:8000/docs
 streamlit run dashboard/app.py                 # http://localhost:8501
 
-# 4. Run on real open data for a date
-python scripts/run_daily.py --date 2024-07-30 --domain india
+# 4. Run on real open data for the latest available cycle
+python scripts/run_daily.py --date latest
+
+# 5. Schedule operational runs (Windows)
+# Right-click scripts\schedule_windows.ps1 -> Run with PowerShell
+#
+# Linux Cron equivalent (UTC times):
+# 30 08,20 * * * cd /path/to/megha-drishti && /path/to/.venv/bin/python scripts/run_daily.py --date latest >> data/logs/cron.log 2>&1
 ```
 
 ### Screenshots

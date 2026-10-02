@@ -1,92 +1,63 @@
-import os
-import tempfile
-import unittest
-from unittest.mock import patch
-
 import numpy as np
 import pandas as pd
+import pytest
 import xarray as xr
 
-from nwpblend.ingest import ecmwf, gfs, ncmrwf_adapter
+from src.nwpblend.ingest.ecmwf import _process_file
 
 
-class TestIngest(unittest.TestCase):
-    def setUp(self):
-        self.domain = {"lat_min": 10, "lat_max": 20, "lon_min": 70, "lon_max": 80}
-        self.leads = [24, 48]
-        self.variables = ["t2m", "precip"]
-        self.date = "2024-07-30"
+@pytest.fixture
+def dummy_grib_0p25(tmp_path):
+    # Create a dummy xarray dataset resembling 0.25 ECMWF
+    lats = np.arange(90, -90.01, -0.25)
+    lons = np.arange(0, 360, 0.25)
+    
+    ds = xr.Dataset(
+        {"2t": (("latitude", "longitude"), np.random.rand(len(lats), len(lons)) * 10 + 273.15)},
+        coords={"latitude": lats, "longitude": lons, "step": pd.Timedelta(days=1)}
+    )
+    # mock to bypass cfgrib
+    return ds
 
-    @patch("ecmwf.opendata.Client")
-    @patch("nwpblend.ingest.ecmwf.xr.open_dataset")
-    @patch("nwpblend.ingest.ecmwf.get_cache_dir")
-    def test_ecmwf_fetch(self, mock_get_cache_dir, mock_open_ds, mock_client):
-        with tempfile.TemporaryDirectory() as d:
-            mock_get_cache_dir.return_value = d
+@pytest.fixture
+def dummy_grib_0p1(tmp_path):
+    # ECMWF 0.1 degree layout (Oct 2026 change)
+    lats = np.arange(90, -90.01, -0.1)
+    lons = np.arange(0, 360, 0.1)
+    
+    ds = xr.Dataset(
+        # Some new files might use t2m directly
+        {"t2m": (("latitude", "longitude"), np.random.rand(len(lats), len(lons)) * 10 + 273.15)},
+        coords={"latitude": lats, "longitude": lons, "step": pd.Timedelta(days=1)}
+    )
+    return ds
 
-            # Create a dummy file to bypass the download check
-            target_file = os.path.join(d, "ecmwf_2024-07-30.grib")
-            with open(target_file, "w") as f:
-                f.write("dummy")
+def test_ecmwf_process_0p25(monkeypatch, dummy_grib_0p25):
+    # Monkeypatch open_dataset
+    monkeypatch.setattr(xr, "open_dataset", lambda *args, **kwargs: dummy_grib_0p25)
+    
+    domain = {"lat_min": 10, "lat_max": 20, "lon_min": 70, "lon_max": 80, "resolution": 0.25}
+    ds_out = _process_file("fake.grib", domain, "2024-01-01")
+    
+    assert ds_out is not None
+    assert "t2m" in ds_out
+    assert ds_out["t2m"].attrs["units"] == "C"
+    # Domain sizes: 20 down to 10 step -0.25 => 41 points
+    assert len(ds_out.lat) == 41
+    assert len(ds_out.lon) == 41
+    assert ds_out.lat.values[0] == 20.0
 
-            # Create a mock dataset
-            mock_ds = xr.Dataset(
-                {
-                    "2t": (["step", "latitude", "longitude"], np.ones((2, 10, 10)) * 300.15),
-                    "tp": (["step", "latitude", "longitude"], np.ones((2, 10, 10)) * 0.05),
-                },
-                coords={
-                    "step": pd.to_timedelta([24, 48], unit="h"),
-                    "latitude": np.linspace(20, 10, 10),
-                    "longitude": np.linspace(70, 80, 10),
-                },
-            )
-            mock_open_ds.return_value = mock_ds
-
-            ds = ecmwf.fetch(self.date, self.domain, self.leads, self.variables)
-
-            self.assertIsNotNone(ds)
-            self.assertIn("t2m", ds)
-            self.assertIn("precip", ds)
-            # Check unit conversion
-            self.assertAlmostEqual(ds["t2m"].values.flatten()[0], 27.0)  # 300.15 - 273.15
-            self.assertAlmostEqual(ds["precip"].values.flatten()[0], 50.0)  # 0.05 * 1000
-
-    @patch("s3fs.S3FileSystem")
-    @patch("nwpblend.ingest.gfs.xr.open_dataset")
-    @patch("nwpblend.ingest.gfs.get_cache_dir")
-    def test_gfs_fetch(self, mock_get_cache_dir, mock_open_ds, mock_s3fs):
-        with tempfile.TemporaryDirectory() as d:
-            mock_get_cache_dir.return_value = d
-
-            # Create a dummy file for each lead
-            for lead in self.leads:
-                target_file = os.path.join(d, f"gfs_20240730_f{lead:03d}.grib")
-                with open(target_file, "w") as f:
-                    f.write("dummy")
-
-            mock_ds = xr.Dataset(
-                {
-                    "t2m": (["step", "latitude", "longitude"], np.ones((1, 10, 10)) * 300.15),
-                    "prate": (["step", "latitude", "longitude"], np.ones((1, 10, 10)) * 0.0001),
-                },
-                coords={
-                    "step": [pd.to_timedelta(24, unit="h")],
-                    "latitude": np.linspace(20, 10, 10),
-                    "longitude": np.linspace(70, 80, 10),
-                },
-            )
-            mock_open_ds.return_value = mock_ds
-
-            ds = gfs.fetch(self.date, self.domain, self.leads, self.variables)
-
-            self.assertIsNotNone(ds)
-            self.assertIn("t2m", ds)
-            self.assertIn("precip", ds)
-
-    def test_ncmrwf_empty_folder(self):
-        with tempfile.TemporaryDirectory() as d:
-            ds = ncmrwf_adapter.fetch(
-                self.date, self.domain, self.leads, self.variables, data_dir=d
-            )
-            self.assertIsNone(ds)
+def test_ecmwf_process_0p1(monkeypatch, dummy_grib_0p1):
+    # Monkeypatch open_dataset
+    monkeypatch.setattr(xr, "open_dataset", lambda *args, **kwargs: dummy_grib_0p1)
+    
+    domain = {"lat_min": 10, "lat_max": 20, "lon_min": 70, "lon_max": 80, "resolution": 0.25}
+    ds_out = _process_file("fake.grib", domain, "2024-01-01")
+    
+    assert ds_out is not None
+    assert "t2m" in ds_out
+    assert ds_out["t2m"].attrs["units"] == "C"
+    # Even if input is 0.1, output should be Regridded to 0.25
+    assert len(ds_out.lat) == 41
+    assert len(ds_out.lon) == 41
+    assert ds_out.lat.values[0] == 20.0

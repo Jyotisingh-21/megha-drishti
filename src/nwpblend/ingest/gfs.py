@@ -1,90 +1,150 @@
 import logging
 import os
+import shutil
+from datetime import UTC, datetime, timedelta, timezone
 
 import numpy as np
 import pandas as pd
+import s3fs
 import xarray as xr
-
-from nwpblend.ingest.common import get_cache_dir, retry_with_backoff
 
 logger = logging.getLogger(__name__)
 
-
-@retry_with_backoff(retries=3)
-def fetch(date: str, domain: dict, leads: list[int], variables: list[str]) -> xr.Dataset | None:
+def probe_and_fetch(target_date, domain, leads, variables):
     """
-    Fetch NOAA GFS data from anonymous AWS S3.
+    Probes for the latest complete NOAA GFS run on AWS, archiving to data/archive.
     """
-    try:
-        import s3fs
-    except ImportError:
-        logger.error("s3fs not installed.")
-        return None
-
-    cache_dir = get_cache_dir("gfs")
-    dt = pd.to_datetime(date)
-    date_str = dt.strftime("%Y%m%d")
-
     fs = s3fs.S3FileSystem(anon=True)
 
+    if target_date == "latest":
+        now = datetime.now(UTC)
+        # GFS runs at 00, 06, 12, 18Z.
+        candidates = []
+        for i in range(8): # look back up to 8 runs (2 days)
+            t = now - timedelta(hours=i*6)
+            h = (t.hour // 6) * 6
+            candidates.append(t.replace(hour=h, minute=0, second=0, microsecond=0))
+    else:
+        dt = pd.to_datetime(target_date)
+        candidates = [dt.replace(hour=0, tzinfo=UTC)]
+
+    success_ds = None
+    chosen_run = None
+
+    for cand in candidates:
+        date_str = cand.strftime("%Y%m%d")
+        time_str = f"{cand.hour:02d}"
+        
+        archive_dir = f"data/archive/gfs/{cand.strftime('%Y%m%d_%H%M')}"
+        os.makedirs(archive_dir, exist_ok=True)
+        
+        # We need all leads for a complete run
+        missing_leads = False
+        target_files = []
+        
+        for lead in leads:
+            lead_str = f"{lead:03d}"
+            target_file = os.path.join(archive_dir, f"raw_f{lead_str}.grib")
+            target_files.append(target_file)
+            
+            if not os.path.exists(target_file):
+                s3_path = f"noaa-gfs-bdp-pds/gfs.{date_str}/{time_str}/atmos/gfs.t{time_str}z.pgrb2.0p25.f{lead_str}"
+                if fs.exists(s3_path):
+                    logger.info(f"Downloading GFS run {cand} lead {lead}...")
+                    try:
+                        fs.get(s3_path, target_file)
+                    except Exception as e:
+                        logger.error(f"GFS download failed: {e}")
+                        missing_leads = True
+                        break
+                else:
+                    logger.info(f"GFS run {cand} lead {lead} missing on AWS.")
+                    missing_leads = True
+                    break
+        
+        if not missing_leads:
+            logger.info(f"Found complete GFS run {cand}")
+            success_ds = _process_files(target_files, domain, cand)
+            if success_ds is not None:
+                chosen_run = cand
+                break
+            else:
+                logger.error(f"Failed to process downloaded files for {cand}")
+    
+    if chosen_run:
+        logger.info(f"Selected GFS run: {chosen_run}")
+        return success_ds, chosen_run
+    else:
+        logger.error("No valid GFS runs found in probing window.")
+        return None, None
+
+def _process_files(target_files, domain, init_dt):
     datasets = []
-
-    for lead in leads:
-        lead_str = f"{lead:03d}"
-        s3_path = f"noaa-gfs-bdp-pds/gfs.{date_str}/00/atmos/gfs.t00z.pgrb2.0p25.f{lead_str}"
-        target_file = os.path.join(cache_dir, f"gfs_{date_str}_f{lead_str}.grib")
-
-        if not os.path.exists(target_file):
-            logger.info(f"Downloading GFS data for {date} lead {lead} to {target_file}")
-            try:
-                fs.get(s3_path, target_file)
-            except Exception as e:
-                logger.error(f"GFS download failed for lead {lead}: {e}")
-                continue
-
+    
+    for target_file in target_files:
         try:
-            ds = xr.open_dataset(
-                target_file, engine="cfgrib", filter_by_keys={"typeOfLevel": "surface"}
-            )
-            ds_subset = ds.sel(
-                latitude=slice(domain["lat_max"], domain["lat_min"]),
-                longitude=slice(domain["lon_min"], domain["lon_max"]),
-            )
+            # GFS surface variables
+            ds = xr.open_dataset(target_file, engine="cfgrib", filter_by_keys={"typeOfLevel": "surface"})
+            ds2 = xr.open_dataset(target_file, engine="cfgrib", filter_by_keys={"typeOfLevel": "heightAboveGround"})
+            
+            ds = xr.merge([ds, ds2], compat='override')
+
+            lat_slice = slice(domain["lat_max"] + 1, domain["lat_min"] - 1)
+            lon_slice = slice(domain["lon_min"] - 1, domain["lon_max"] + 1)
+            if ds.latitude.values[0] < ds.latitude.values[-1]:
+                lat_slice = slice(domain["lat_min"] - 1, domain["lat_max"] + 1)
+                
+            ds_subset = ds.sel(latitude=lat_slice, longitude=lon_slice)
+            
+            # Interpolate to 0.25 (though GFS is already 0.25, ensuring alignment)
+            new_lats = np.arange(domain["lat_max"], domain["lat_min"] - 0.01, -domain["resolution"])
+            new_lons = np.arange(domain["lon_min"], domain["lon_max"] + 0.01, domain["resolution"])
+            ds_subset = ds_subset.interp(latitude=new_lats, longitude=new_lons, method="linear")
+            
             datasets.append(ds_subset)
         except Exception as e:
-            logger.error(f"Failed to process GFS data for lead {lead}: {e}")
-            continue
+            logger.error(f"Failed to process GFS file {target_file}: {e}")
+            return None
 
     if not datasets:
         return None
 
     try:
         combined = xr.concat(datasets, dim="step")
-        combined = combined.rename({"latitude": "lat", "longitude": "lon", "step": "lead"})
+        combined = combined.rename({"latitude": "lat", "longitude": "lon"})
+        if "step" in combined.coords:
+            combined = combined.rename({"step": "lead"})
 
         out_vars = {}
-        # GFS uses different variable names, e.g., t2m, prate
         if "t2m" in combined:
             out_vars["t2m"] = combined["t2m"] - 273.15
             out_vars["t2m"].attrs["units"] = "C"
 
-        # prate is in kg m-2 s-1, convert to mm over 24h: prate * 86400
-        # Actually GFS might provide PRATE or APCP. If it's prate:
+        # GFS precipitation is typically APCP or PRATE
         if "prate" in combined:
             out_vars["precip"] = combined["prate"] * 86400.0
+            out_vars["precip"].attrs["units"] = "mm"
+        elif "tp" in combined:
+            out_vars["precip"] = combined["tp"]
             out_vars["precip"].attrs["units"] = "mm"
 
         if "u10" in combined and "v10" in combined:
             out_vars["wind10m"] = np.sqrt(combined["u10"] ** 2 + combined["v10"] ** 2)
             out_vars["wind10m"].attrs["units"] = "m s-1"
+        elif "10u" in combined and "10v" in combined:
+            out_vars["wind10m"] = np.sqrt(combined["10u"] ** 2 + combined["10v"] ** 2)
+            out_vars["wind10m"].attrs["units"] = "m s-1"
 
         if "gust" in combined:
             out_vars["gust10m"] = combined["gust"]
             out_vars["gust10m"].attrs["units"] = "m s-1"
+        elif "10fg" in combined:
+            out_vars["gust10m"] = combined["10fg"]
+            out_vars["gust10m"].attrs["units"] = "m s-1"
 
         out_ds = xr.Dataset(out_vars)
         if "time" not in out_ds.coords:
-            out_ds = out_ds.expand_dims({"time": [dt]})
+            out_ds = out_ds.expand_dims({"time": [init_dt]})
 
         return out_ds
     except Exception as e:

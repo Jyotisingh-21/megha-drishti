@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import shutil
 import time
 import traceback
 from datetime import UTC, datetime
@@ -8,16 +9,69 @@ from typing import Any
 
 import pandas as pd
 import xarray as xr
+import yaml
 
 from nwpblend.export.writer import export_netcdf
 
 logger = logging.getLogger(__name__)
 
+def cleanup_archive(config):
+    """Deletes archived runs older than retention threshold."""
+    retention_days = config.get("archive_retention_days", 14)
+    cutoff = datetime.now(UTC) - pd.Timedelta(days=retention_days)
+    
+    archive_dir = "data/archive"
+    if not os.path.exists(archive_dir):
+        return
+        
+    for source in os.listdir(archive_dir):
+        source_dir = os.path.join(archive_dir, source)
+        if not os.path.isdir(source_dir):
+            continue
+        for run_dir in os.listdir(source_dir):
+            try:
+                run_dt = datetime.strptime(run_dir, "%Y%m%d_%H%M").replace(tzinfo=UTC)
+                if run_dt < cutoff:
+                    path_to_delete = os.path.join(source_dir, run_dir)
+                    shutil.rmtree(path_to_delete)
+                    logger.info(f"Deleted old archive: {path_to_delete}")
+            except ValueError:
+                pass
+
+def check_lock():
+    lockfile = "data/logs/pipeline.lock"
+    if os.path.exists(lockfile):
+        with open(lockfile, "r") as f:
+            try:
+                data = json.load(f)
+                start_time = datetime.fromisoformat(data["start_time"])
+                # Configurable limit: 4 hours
+                if (datetime.now(UTC) - start_time).total_seconds() > 4 * 3600:
+                    logger.warning(f"Stale lock found from {start_time}. Overriding.")
+                    os.remove(lockfile)
+                else:
+                    return False
+            except Exception:
+                os.remove(lockfile)
+    
+    os.makedirs(os.path.dirname(lockfile), exist_ok=True)
+    with open(lockfile, "w") as f:
+        json.dump({"pid": os.getpid(), "start_time": datetime.now(UTC).isoformat()}, f)
+    return True
+
+def release_lock():
+    lockfile = "data/logs/pipeline.lock"
+    if os.path.exists(lockfile):
+        os.remove(lockfile)
 
 def run_daily(date: str, domain: dict, demo: bool = False, skip_download: bool = False):
     """
     Executes the full daily operational pipeline end-to-end.
     """
+    if not check_lock():
+        logger.error("Pipeline is already running. Exiting.")
+        return {"status": "SKIPPED", "errors": ["Locked"]}
+
     start_time = time.time()
 
     report: dict[str, Any] = {
@@ -39,91 +93,111 @@ def run_daily(date: str, domain: dict, demo: bool = False, skip_download: bool =
 
     logger.info(f"Starting pipeline for {date} (Demo={demo})")
 
-    # 1. Ingest
-    t0 = time.time()
     try:
-        if not skip_download:
-            # We would invoke the ingestors here
-            pass
-        log_stage("ingest", t0, "SUCCESS")
-    except Exception as e:
-        report["errors"].append(f"Ingest failed: {e}")
-        log_stage("ingest", t0, "FAILED")
-        return report
+        # Load config
+        with open("configs/default.yaml", "r") as f:
+            config = yaml.safe_load(f)
+            
+        variables = config.get("variables", ["precip", "t2m", "wind10m", "gust10m"])
+        leads = [i * 24 for i in config.get("lead_times_days", [1,2,3,4,5,6,7,8,9,10])]
 
-    # 2. Harmonise & Stack
-    t0 = time.time()
-    models = None
-    try:
-        # Assuming the synthetic or actual script wrote to data/processed/stacked_models.zarr
-        if demo:
-            models_path = "data/processed/stacked_models.zarr"
-            if not os.path.exists(models_path):
-                # Fallback generate
-                from nwpblend.harmonise.store import stack_models, write_store
+        cleanup_archive(config)
 
-                expected = ["ecmwf_ifs", "gfs", "aifs", "ncum_g", "graphcast", "pangu"]
-                m_dict = {}
-                for m in expected:
+        # 1. Ingest
+        t0 = time.time()
+        models = {}
+        expected_models = config.get("models", ["ecmwf_ifs", "gfs"])
+        
+        try:
+            if demo:
+                # In demo mode, just load the static demo files
+                for m in expected_models:
                     try:
-                        m_dict[m] = xr.open_zarr(f"data/demo/models/{m}.zarr").load()
+                        models[m] = xr.open_zarr(f"data/demo/models/{m}.zarr").load()
                     except Exception:
-                        report["warnings"].append(f"Demo model {m} not found.")
-                models = stack_models(m_dict, expected)
-                os.makedirs("data/processed", exist_ok=True)
-                write_store(models, models_path)
+                        pass
+                log_stage("ingest", t0, "SUCCESS", "Loaded demo data")
+            elif not skip_download:
+                import nwpblend.ingest.ecmwf as ecmwf_ingest
+                import nwpblend.ingest.gfs as gfs_ingest
+                
+                # Fetch ECMWF
+                if "ecmwf_ifs" in expected_models:
+                    ds, _run_dt = ecmwf_ingest.probe_and_fetch(date, domain, leads, variables)
+                    if ds is not None:
+                        models["ecmwf_ifs"] = ds
+                    else:
+                        report["warnings"].append("ECMWF failed. Dropping from blend.")
+                
+                # Fetch GFS
+                if "gfs" in expected_models:
+                    ds, _run_dt = gfs_ingest.probe_and_fetch(date, domain, leads, variables)
+                    if ds is not None:
+                        models["gfs"] = ds
+                    else:
+                        report["warnings"].append("GFS failed. Dropping from blend.")
+                
+                log_stage("ingest", t0, "SUCCESS")
+        except Exception as e:
+            report["errors"].append(f"Ingest failed: {e}")
+            log_stage("ingest", t0, "FAILED")
+
+        # 2. Harmonise & Stack
+        t0 = time.time()
+        stacked_models = None
+        try:
+            if not models:
+                raise ValueError("No models available to stack.")
+                
+            from nwpblend.harmonise.store import stack_models, write_store
+            
+            # Use only available models and normalize their weights logically later
+            stacked_models = stack_models(models, list(models.keys()))
+            os.makedirs("data/processed", exist_ok=True)
+            models_path = "data/processed/stacked_models.zarr"
+            write_store(stacked_models, models_path)
+
+            log_stage("harmonise", t0, "SUCCESS", f"Models loaded: {stacked_models.model.values}")
+        except Exception as e:
+            report["errors"].append(f"Harmonise failed: {e}")
+            log_stage("harmonise", t0, "FAILED", str(e))
+
+        # 3. Blending & Export
+        t0 = time.time()
+        try:
+            if stacked_models is not None:
+                os.makedirs("data/output", exist_ok=True)
+                out_file = f"data/output/blend_{date}.nc"
+                metadata = {"issue_date": date, "models_used": list(stacked_models.model.values)}
+                blend_mock = stacked_models.isel(model=0).drop_vars("model") if "model" in stacked_models.dims else stacked_models
+                export_netcdf(blend_mock, out_file, metadata=metadata)
+                log_stage("blend_and_export", t0, "SUCCESS", f"Saved to {out_file}")
             else:
-                models = xr.open_zarr(models_path).load()
-        else:
-            # Real operational harmonisation logic here
-            models = xr.open_zarr("data/processed/stacked_models.zarr").load()
+                log_stage("blend_and_export", t0, "SKIPPED")
+        except Exception as e:
+            report["errors"].append(f"Blend/Export failed: {e}")
+            report["errors"].append(traceback.format_exc())
+            log_stage("blend_and_export", t0, "FAILED")
 
-        log_stage("harmonise", t0, "SUCCESS", f"Models loaded: {models.model.values}")
-    except Exception as e:
-        report["errors"].append(f"Harmonise failed: {e}")
-        log_stage("harmonise", t0, "FAILED", str(e))
-        return report
+    finally:
+        # Finalize
+        total_time = time.time() - start_time
+        report["total_time_sec"] = round(total_time, 2)
+        report["status"] = "FAILED" if report["errors"] else "SUCCESS"
 
-    # 3. Blending & Export
-    t0 = time.time()
-    try:
-        # In a real operational setting, we'd run gating predict here
-        # For the pipeline mock, we just use the raw output or mean
-        # and export it
+        os.makedirs("data/logs", exist_ok=True)
+        timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
+        with open(f"data/logs/run_report_{timestamp}.json", "w") as f:
+            json.dump(report, f, indent=2)
+            
+        # For dashboard
+        with open("data/logs/run_report_latest.json", "w") as f:
+            json.dump(report, f, indent=2)
 
-        # Export NetCDF
-        os.makedirs("data/output", exist_ok=True)
-        out_file = f"data/output/blend_{date}.nc"
-
-        metadata = {"issue_date": date, "models_used": list(models.model.values)}
-
-        # We'll just export the first model as a placeholder for the blended result in demo
-        blend_mock = models.isel(model=0).drop_vars("model") if "model" in models.dims else models
-
-        export_netcdf(blend_mock, out_file, metadata=metadata)
-
-        log_stage("blend_and_export", t0, "SUCCESS", f"Saved to {out_file}")
-    except Exception as e:
-        report["errors"].append(f"Blend/Export failed: {e}")
-        report["errors"].append(traceback.format_exc())
-        log_stage("blend_and_export", t0, "FAILED")
-
-    # Finalize
-    total_time = time.time() - start_time
-    report["total_time_sec"] = round(total_time, 2)
-    report["status"] = "FAILED" if report["errors"] else "SUCCESS"
-
-    os.makedirs("data/logs", exist_ok=True)
-    from datetime import timezone
-
-    timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
-    with open(f"data/logs/run_report_{date}_{timestamp}.json", "w") as f:
-        json.dump(report, f, indent=2)
-
-    logger.info(f"Pipeline finished with status: {report['status']}")
+        logger.info(f"Pipeline finished with status: {report['status']}")
+        release_lock()
 
     if report["errors"]:
-        # We explicitly raise so CI and external scripts know it failed
         raise RuntimeError("Pipeline failed! See report for details.")
 
     return report
