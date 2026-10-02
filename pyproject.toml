@@ -22,3 +22,8 @@ extend-ignore = [ "BLE001", "F401", "S110",]
 
 [tool.setuptools.packages.find]
 where = [ "src",]
+[tool.pytest.ini_options]
+addopts = "-m 'not e2e'"
+markers = [
+    "e2e: End-to-end tests",
+]
