@@ -1,13 +1,17 @@
 import argparse
 import logging
+import os
 
 import numpy as np
 import pandas as pd
 import xarray as xr
+import yaml
 
 from nwpblend.blend.baselines import bma, equal_weight, ewa
+from nwpblend.harmonise.store import stack_models, write_store
+from nwpblend.pipeline import run_daily
+from nwpblend.truth import fetch_real_truth
 from nwpblend.verify.metrics import bias, mae, rmse
-
 
 def main():
     parser = argparse.ArgumentParser()
@@ -17,63 +21,83 @@ def main():
     logging.basicConfig(level=logging.INFO)
     logger = logging.getLogger(__name__)
 
-    if not args.demo:
-        logger.info("Only --demo mode is supported for this run_benchmark script.")
-        return
+    out_lines = []
+    
+    if args.demo:
+        logger.info("Loading demo data for benchmark...")
+        try:
+            truth = xr.open_zarr("data/demo/truth.zarr").load()
 
-    logger.info("Loading demo data for benchmark...")
-    try:
-        truth = xr.open_zarr("data/demo/truth.zarr").load()
-        import os
+            if not os.path.exists("data/processed/stacked_models.zarr"):
+                logger.info("Stacked models not found. Stacking demo data now...")
+                expected = ["ecmwf_ifs", "gfs", "aifs", "ncum_g", "graphcast", "pangu"]
+                m_dict = {}
+                for m in expected:
+                    try:
+                        m_dict[m] = xr.open_zarr(f"data/demo/models/{m}.zarr").load()
+                    except Exception:
+                        pass
 
-        if not os.path.exists("data/processed/stacked_models.zarr"):
-            from nwpblend.harmonise.store import stack_models, write_store
+                if m_dict:
+                    stacked = stack_models(m_dict, expected)
+                    os.makedirs("data/processed", exist_ok=True)
+                    write_store(stacked, "data/processed/stacked_models.zarr")
 
-            logger.info("Stacked models not found. Stacking demo data now...")
-            expected = ["ecmwf_ifs", "gfs", "aifs", "ncum_g", "graphcast", "pangu"]
-            m_dict = {}
-            for m in expected:
-                try:
-                    m_dict[m] = xr.open_zarr(f"data/demo/models/{m}.zarr").load()
-                except Exception:
-                    logger.warning(f"Demo model {m} not found.")
-
-            if m_dict:
-                stacked = stack_models(m_dict, expected)
-                os.makedirs("data/processed", exist_ok=True)
-                write_store(stacked, "data/processed/stacked_models.zarr")
-
-        models = xr.open_zarr("data/processed/stacked_models.zarr").load()
-
-        # STALE CACHE GUARD: Check if dimensions match between truth and models
-        if len(models.lat) != len(truth.lat) or len(models.lon) != len(truth.lon):
-            logger.warning(
-                "Stale cache detected: 'lat' or 'lon' sizes mismatch between truth and models! Rebuilding stacked models..."
-            )
-            import shutil
-
-            shutil.rmtree("data/processed/stacked_models.zarr")
-
-            # Restack
-            stacked = stack_models(m_dict, expected)
-            write_store(stacked, "data/processed/stacked_models.zarr")
             models = xr.open_zarr("data/processed/stacked_models.zarr").load()
+            times = models.time.values
+            if len(times) < 30:
+                logger.error("Dataset too small for 30-day test window.")
+                return
 
-    except Exception as e:
-        logger.error(f"Failed to load stacked models or truth. Ensure Prompt 1 is run. {e}")
-        return
+            test_times = times[-30:]
+            truth_test = truth.sel(time=test_times)
+            is_demo = True
+            
+        except Exception as e:
+            logger.error(f"Failed to load stacked models or truth. Ensure Prompt 1 is run. {e}")
+            return
+            
+    else:
+        logger.info("Loading REAL stacked models...")
+        try:
+            models = xr.open_zarr("data/processed/stacked_models.zarr").load()
+        except Exception as e:
+            logger.error(f"Failed to load stacked models. Run fetch_history first. {e}")
+            return
+            
+        times = models.time.values
+        start_date = str(pd.to_datetime(times[0]).date())
+        end_date = str(pd.to_datetime(times[-1]).date())
+        
+        logger.info(f"Models span {start_date} to {end_date}. Fetching real truth...")
+        with open("configs/default.yaml") as f:
+            cfg = yaml.safe_load(f)
+        domain = cfg["domain"] 
+        
+        truth = fetch_real_truth(start_date, end_date, domain)
+        if truth is None:
+            logger.error("Failed to fetch real truth.")
+            return
+            
+        truth_times = truth.time.values
+        # Strip timezone from model times if any
+        model_times = pd.to_datetime(times).tz_localize(None).values
+        intersect_times = np.intersect1d(model_times, truth_times)
+        
+        if len(intersect_times) == 0:
+            logger.error("No overlap between model history and available truth.")
+            return
+            
+        logger.info(f"Scoring {len(intersect_times)} overlapping days.")
+        test_times = intersect_times
+        truth_test = truth.sel(time=test_times)
+        
+        # Align models to the same times
+        models["time"] = model_times
+        models = models.sel(time=test_times).load()
+        is_demo = False
 
-    # Define test period (last 30 days)
-    times = models.time.values
-    if len(times) <= 30:
-        logger.error("Dataset too small for 30-day test window.")
-        return
-
-    test_times = times[-30:]
-    truth_test = truth.sel(time=test_times)
-
-    # Baselines (evaluates over test_times but requires full time for history)
-    # To save memory, we can slice models
+    # Baselines
     models_test = models.sel(time=test_times)
     available_test = models.available.sel(time=test_times)
 
@@ -86,17 +110,17 @@ def main():
     logger.info("Computing BMA...")
     bma_blend = bma(models, truth, models.available, window=30).sel(time=test_times)
 
-    print("=== Benchmark Results (DEMO Data) ===")
+    mode_str = "DEMO Data" if is_demo else "REAL Data"
+    print(f"=== Benchmark Results ({mode_str}) ===")
 
-    # We will output a markdown table
     out_lines = ["| Model | Var | RMSE | MAE | Bias |", "|-------|-----|------|-----|------|"]
 
     def evaluate_dataset(name, ds, var, lead):
-        # Flatten over lat/lon, average over time
+        if var not in truth_test:
+            return
         fcst_val = ds[var].sel(lead=lead)
         truth_val = truth_test[var]
 
-        # Align
         if fcst_val.shape != truth_val.shape:
             return
 
@@ -107,7 +131,7 @@ def main():
         out_lines.append(f"| {name} | {var} | {r:.3f} | {m:.3f} | {b:.3f} |")
 
     lead = models.lead.values[0]
-    variables = ["t2m", "precip"]
+    variables = ["t2m", "precip", "wind10m", "gust10m"]
 
     for var in variables:
         for m_name in models.model.values:
@@ -121,8 +145,11 @@ def main():
     for line in out_lines:
         print(line)
 
-    with open("docs/results_demo.md", "w") as f:
-        f.write("# Benchmark Results (DEMO Data)\n\n")
+    results_file = "docs/results_demo.md" if is_demo else "docs/results.md"
+    json_file = "docs/results_demo.json" if is_demo else "docs/results.json"
+
+    with open(results_file, "w") as f:
+        f.write(f"# Benchmark Results ({mode_str})\n\n")
         f.write("Evaluation of single models vs baseline blenders.\n\n")
         f.write("\n".join(out_lines))
         f.write("\n\n")
@@ -138,13 +165,16 @@ def main():
         logger.info("Running Event Replay...")
         from nwpblend.verify.replay import check_model_drift, replay_events
 
-        replay_report = replay_events(models, truth, is_demo=True)
+        replay_report = replay_events(models, truth, is_demo=is_demo)
         drift_flags = check_model_drift(models, truth, models.available)
 
-        with open("docs/results_demo.md", "a") as f:
+        with open(results_file, "a") as f:
             f.write("# Verification and Ablation\n\n")
-            f.write("This run uses synthetic data generated by `--demo`.\n")
-            f.write("Periods: 100 days synthetic. 50/50 Train/Test split for ablation.\n\n")
+            if is_demo:
+                f.write("This run uses synthetic data generated by `--demo`.\n")
+                f.write("Periods: 100 days synthetic. 50/50 Train/Test split for ablation.\n\n")
+            else:
+                f.write(f"This run uses real data spanning {start_date} to {end_date}.\n")
 
             f.write("## Ablation Ladder\n")
             f.write(ablation_df.to_markdown(index=False, floatfmt=".3f"))
@@ -160,7 +190,7 @@ def main():
             f.write(replay_report)
             f.write("\n")
 
-        # Create JSON for Dashboard (Amendment 5)
+        # Create JSON for Dashboard
         import datetime
         import json
         import subprocess
@@ -170,7 +200,6 @@ def main():
         except Exception:
             commit_hash = "unknown"
 
-        # Parse the ablation_df to get RMSE drop
         try:
             raw_rmse = float(
                 ablation_df.loc[ablation_df["Stage"] == "Raw Best", "Precip RMSE"].values[0]
@@ -183,26 +212,27 @@ def main():
             blend_rmse_change = 0.0
 
         res_json = {
-            "mode": "DEMO",
+            "mode": "DEMO" if is_demo else "REAL",
             "metadata": {
                 "timestamp": datetime.datetime.now(datetime.UTC).isoformat(),
                 "git_commit": commit_hash,
                 "data_resolution": float(models.lat[1] - models.lat[0])
                 if len(models.lat) > 1
                 else 1.0,
-                "data_mode": "synthetic",
+                "data_mode": "synthetic" if is_demo else "real",
+                "start_date": str(start_date) if not is_demo else None,
+                "end_date": str(end_date) if not is_demo else None,
+                "scored_days": len(test_times)
             },
             "blend_rmse_change_pct": blend_rmse_change,
             "ablation": ablation_df.to_dict(orient="records"),
             "drift_flags": drift_flags,
         }
 
-        with open("docs/results_demo.json", "w") as f:
+        with open(json_file, "w") as f:
             json.dump(res_json, f, indent=2)
 
-        logger.info(
-            "Ablation complete. Results appended to docs/results_demo.md and docs/results_demo.json"
-        )
+        logger.info(f"Ablation complete. Results appended to {results_file} and {json_file}")
     except ImportError:
         logger.warning("Ablation module not yet implemented.")
 
