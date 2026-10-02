@@ -164,6 +164,7 @@ def run_daily(date: str, domain: dict, demo: bool = False, skip_download: bool =
             log_stage("harmonise", t0, "SUCCESS", f"Models loaded: {stacked_models.model.values}")
         except Exception as e:
             import traceback
+
             report["errors"].append(f"Harmonise failed: {e}\n{traceback.format_exc()}")
             log_stage("harmonise", t0, "FAILED", str(e))
 
@@ -180,12 +181,14 @@ def run_daily(date: str, domain: dict, demo: bool = False, skip_download: bool =
                     else stacked_models
                 )
                 export_netcdf(blend_mock, out_file, metadata=metadata)
-        
-        # Keep a history of issued forecasts
-        archive_out = f"data/output/archive/blend_{init_dt.strftime('%Y%m%d')}.nc"
-        os.makedirs(os.path.dirname(archive_out), exist_ok=True)
-        import shutil
-        shutil.copy2(out_file, archive_out)
+
+                # Keep a history of issued forecasts
+                dt_obj = pd.to_datetime(stacked_models.time.values[0])
+                archive_out = f"data/output/archive/blend_{dt_obj.strftime('%Y%m%d')}.nc"
+                os.makedirs(os.path.dirname(archive_out), exist_ok=True)
+                import shutil
+
+                shutil.copy2(out_file, archive_out)
                 log_stage("blend_and_export", t0, "SUCCESS", f"Saved to {out_file}")
             else:
                 log_stage("blend_and_export", t0, "SKIPPED")

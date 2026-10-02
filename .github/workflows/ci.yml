@@ -22,13 +22,12 @@ jobs:
     - name: Lint with Ruff
       run: |
         ruff check .
-    - name: Test with pytest
-      run: |
-        pytest -q
-        
     - name: End-to-end smoke test
       run: |
         python scripts/run_daily.py --demo
+    - name: Test with pytest
+      run: |
+        pytest -q
 
     - name: Test Docker build
       run: |
