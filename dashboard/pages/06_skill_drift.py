@@ -1,10 +1,11 @@
+import streamlit as st
 import json
 import os
-
-import numpy as np
 import pandas as pd
+import numpy as np
+import xarray as xr
 import plotly.express as px
-import streamlit as st
+from data_loader import load_data
 
 st.set_page_config(layout="wide", page_title="Megha-Drishti | Skill & Drift")
 
@@ -15,13 +16,8 @@ data = []
 if os.path.exists("docs/results_demo.json"):
     with open("docs/results_demo.json", "r") as f:
         res = json.load(f)
-        for row in res.get("ablation_ladder", []):
-            data.append(
-                {
-                    "Stage": row.get("Step", row.get("Stage")),
-                    "RMSE": row.get("RMSE", row.get("Precip RMSE")),
-                }
-            )
+        for row in res.get("ablation", []):
+            data.append({"Stage": row.get("Step", row.get("Stage")), "RMSE": row.get("RMSE", row.get("Precip RMSE", 0))})
 
 if data:
     df = pd.DataFrame(data)
@@ -35,15 +31,34 @@ st.divider()
 
 st.subheader("Model Drift Monitoring")
 st.write("Tracks systematic errors and biases in individual models over time.")
-# Mock drift line chart
-dates = pd.date_range("2024-01-01", periods=30)
-df_drift = pd.DataFrame(
-    {
-        "Date": dates,
-        "GFS Bias": np.random.normal(0, 1, 30).cumsum(),
-        "ECMWF Bias": np.random.normal(0, 0.5, 30).cumsum(),
-    }
-)
-fig_d = px.line(df_drift, x="Date", y=["GFS Bias", "ECMWF Bias"], title="30-Day Rolling Bias")
-fig_d.update_layout(plot_bgcolor="#0A192F", paper_bgcolor="rgba(0,0,0,0)")
-st.plotly_chart(fig_d, use_container_width=True)
+
+# Compute real drift instead of mock
+ds, is_demo = load_data()
+truth_file = "data/demo/truth.zarr" if is_demo else "data/processed/truth.zarr"
+
+if os.path.exists(truth_file) and "model" in ds.dims:
+    truth = xr.open_zarr(truth_file).load()
+    var = "t2m"
+    if var in ds and var in truth:
+        # Calculate daily spatial mean bias per model
+        # bias = fcst - truth
+        fcst = ds[var].isel(lead=0) if "lead" in ds.dims else ds[var]
+        
+        # align lat lons
+        fcst_aligned, truth_aligned = xr.align(fcst, truth[var], join="inner")
+        
+        bias = (fcst_aligned - truth_aligned).mean(dim=["lat", "lon"])
+        
+        # Pandas dataframe
+        df_drift = bias.to_dataframe().reset_index()
+        # Pivot
+        df_pivot = df_drift.pivot(index="time", columns="model", values=var).reset_index()
+        
+        # 7-day rolling mean
+        df_roll = df_pivot.set_index("time").rolling(window=7, min_periods=1).mean().reset_index()
+        
+        fig_d = px.line(df_roll, x="time", y=df_roll.columns[1:], title="7-Day Rolling Spatial Mean Bias (T2M)")
+        fig_d.update_layout(plot_bgcolor="#0A192F", paper_bgcolor="rgba(0,0,0,0)")
+        st.plotly_chart(fig_d, use_container_width=True)
+else:
+    st.info("No time-series data available for drift tracking.")

@@ -3,7 +3,7 @@ import logging
 import os
 import time
 import traceback
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 import pandas as pd
@@ -115,7 +115,8 @@ def run_daily(date: str, domain: dict, demo: bool = False, skip_download: bool =
 
     os.makedirs("data/logs", exist_ok=True)
     from datetime import timezone
-    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+
+    timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
     with open(f"data/logs/run_report_{date}_{timestamp}.json", "w") as f:
         json.dump(report, f, indent=2)
 

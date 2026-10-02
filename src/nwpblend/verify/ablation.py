@@ -129,10 +129,8 @@ def run_ablation(models: xr.Dataset, truth: xr.Dataset, avail: xr.DataArray) -> 
         )
 
         # Plot regional skill map (Gating vs Raw)
-        raw_rmse = rmse(best_model_test["precip"].isel(lead=0), truth_test["precip"]).mean(
-            dim="time"
-        )
-        gate_rmse = rmse(gate_blend["precip"].isel(lead=0), truth_test["precip"]).mean(dim="time")
+        raw_rmse = rmse(best_model_test["precip"].isel(lead=0), truth_test["precip"])
+        gate_rmse = rmse(gate_blend["precip"].isel(lead=0), truth_test["precip"])
         skill_map = raw_rmse - gate_rmse
 
         os.makedirs("docs/figures", exist_ok=True)
@@ -172,7 +170,7 @@ def _evaluate_step(
     # In a real ablation, we evaluate multiple variables and leads
     try:
         p = pred[var_name].isel(lead=0) if "lead" in pred.dims else pred[var_name]
-        t = truth["precip"]
+        t = truth["precip"].assign_coords(lat=p.lat, lon=p.lon)
 
         err_rmse = rmse(p, t).mean().values
         # Brier for > 10mm
@@ -184,8 +182,7 @@ def _evaluate_step(
         far = far_vals.mean().values
         csi = csi_vals.mean().values
 
-        # FSS
-        score_fss = fss(p, t, threshold=10.0, window_size=3).mean().values
+        score_fss = fss(p, t, threshold=10.0, window=3).mean().values
 
         crps_val = np.nan
         if is_prob and "calibrated_spread" in pred:

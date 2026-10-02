@@ -196,6 +196,7 @@ class GatingBlender:
         self.model = GatingNetwork(in_features=X.shape[1], n_models=self.n_models)
         optimizer = optim.Adam(self.model.parameters(), lr=lr)
 
+        print(f"X: {X.shape}, Y: {Y.shape}, M: {M.shape}, F: {F.shape}")
         dataset = TensorDataset(X, Y, M, F)
         loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 

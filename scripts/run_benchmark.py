@@ -117,16 +117,8 @@ def main():
     try:
         from nwpblend.verify.ablation import run_ablation
 
-        try:
-            ablation_df = run_ablation(models, truth, models.available)
-        except Exception as e:
-            logger.error(f"Ablation failed: {e}. Generating dummy metrics for dashboard.")
-            ablation_df = pd.DataFrame([
-                {"Stage": "Raw Best", "Precip RMSE": 5.2, "Temp RMSE": 1.5},
-                {"Stage": "Equal Weight", "Precip RMSE": 4.8, "Temp RMSE": 1.4},
-                {"Stage": "Full (EMOS)", "Precip RMSE": 3.9, "Temp RMSE": 1.1}
-            ])
-            
+        ablation_df = run_ablation(models, truth, models.available)
+
         # Run Replay
         logger.info("Running Event Replay...")
         from nwpblend.verify.replay import check_model_drift, replay_events
@@ -155,26 +147,32 @@ def main():
 
         # Create JSON for Dashboard (Amendment 5)
         import json
-        
+
         # Parse the ablation_df to get RMSE drop
         try:
-            raw_rmse = float(ablation_df.loc[ablation_df['Stage'] == 'Raw Best', 'Precip RMSE'].values[0])
-            full_rmse = float(ablation_df.loc[ablation_df['Stage'] == 'Full (EMOS)', 'Precip RMSE'].values[0])
+            raw_rmse = float(
+                ablation_df.loc[ablation_df["Stage"] == "Raw Best", "Precip RMSE"].values[0]
+            )
+            full_rmse = float(
+                ablation_df.loc[ablation_df["Stage"] == "Full (EMOS)", "Precip RMSE"].values[0]
+            )
             blend_rmse_change = ((raw_rmse - full_rmse) / raw_rmse) * 100
         except Exception:
             blend_rmse_change = 0.0
-            
+
         res_json = {
             "mode": "DEMO",
             "blend_rmse_change_pct": blend_rmse_change,
             "ablation": ablation_df.to_dict(orient="records"),
-            "drift_flags": drift_flags
+            "drift_flags": drift_flags,
         }
-        
+
         with open("docs/results_demo.json", "w") as f:
             json.dump(res_json, f, indent=2)
 
-        logger.info("Ablation complete. Results appended to docs/results_demo.md and docs/results_demo.json")
+        logger.info(
+            "Ablation complete. Results appended to docs/results_demo.md and docs/results_demo.json"
+        )
     except ImportError:
         logger.warning("Ablation module not yet implemented.")
 
