@@ -20,7 +20,7 @@ ecmwf_mirrors: ["aws", "google", "ecmwf", "azure"]
 
 # Per-mirror download timeout in seconds.
 # check_real_data.py uses check_timeout (shorter); pipeline uses download_timeout.
-download_timeout: 600
+download_timeout: 30
 check_timeout: 90
 
 models:
