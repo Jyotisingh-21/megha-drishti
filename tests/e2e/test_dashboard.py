@@ -44,11 +44,11 @@ def test_dashboard_pages(page: Page, streamlit_server: str):
     pages_to_test = [
         "Command Center",
         "Forecast Map",
-        "Point Explorer",
+        "Weight Maps",
         "Extreme Guidance",
-        "Weight & Explainability",
         "Event Replay",
-        "Skill & Drift",
+        "Point Explorer",
+        "Skill Drift",
         "Pipeline Status",
     ]
 
