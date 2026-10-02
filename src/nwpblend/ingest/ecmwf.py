@@ -159,7 +159,8 @@ def _process_file(target_file, domain, init_dt):
             {"shortName": "10fg"},
         ]
 
-        parts = []
+        parts = {}
+        primary_step = None  # The step coordinate from the first successfully opened variable
         for filt in groups:
             try:
                 part = xr.open_dataset(
@@ -170,7 +171,14 @@ def _process_file(target_file, domain, init_dt):
                 # Drop scalar heightAboveGround so merge doesn't conflict
                 if "heightAboveGround" in part.coords:
                     part = part.drop_vars("heightAboveGround")
-                parts.append(part)
+
+                # Track the primary step shape (from the first variable that has it)
+                if primary_step is None and "step" in part.dims:
+                    primary_step = part.step
+
+                # Store all data variables from this part
+                for vname in part.data_vars:
+                    parts[vname] = part[vname]
             except Exception:
                 pass  # Variable not present in this file
 
@@ -178,7 +186,23 @@ def _process_file(target_file, domain, init_dt):
             logger.error("No recognised variables found in ECMWF GRIB file")
             return None
 
-        ds = xr.merge(parts, compat="override", join="override")
+        # Build the merged dataset, aligning step dimensions.
+        # Variables with a scalar or mismatched step are broadcast/selected
+        # to match the primary step shape.
+        aligned = {}
+        for vname, da in parts.items():
+            if "valid_time" in da.coords:
+                da = da.drop_vars("valid_time")
+                
+            if "step" in da.dims and primary_step is not None:
+                # Re-index to primary step, filling with NaN where missing
+                da = da.reindex(step=primary_step, method=None)
+            elif primary_step is not None and "step" not in da.dims:
+                # Scalar step – broadcast to all primary steps
+                da = da.expand_dims(step=primary_step)
+            aligned[vname] = da
+
+        ds = xr.Dataset(aligned)
 
         # --- Determine actual resolution -----------------------------------
         lat_res = abs(float(ds.latitude.values[1]) - float(ds.latitude.values[0]))
@@ -226,8 +250,9 @@ def _process_file(target_file, domain, init_dt):
                 break
 
         out_ds = xr.Dataset(out_vars)
-        if "time" not in out_ds.coords:
-            out_ds = out_ds.expand_dims({"time": [init_dt]})
+        if "time" not in out_ds.dims:
+            dt_naive = pd.to_datetime(init_dt).tz_localize(None)
+            out_ds = out_ds.expand_dims({"time": [dt_naive]})
 
         return out_ds
     except Exception as e:

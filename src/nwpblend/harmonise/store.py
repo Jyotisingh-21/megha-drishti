@@ -44,7 +44,9 @@ def stack_models(model_datasets: dict[str, xr.Dataset], expected_models: list[st
     template_ds = None
     for m in expected_models:
         if m in model_datasets:
-            template_ds = xr.zeros_like(model_datasets[m]) * np.nan
+            template_ds = model_datasets[m].copy(deep=True)
+            for v in template_ds.data_vars:
+                template_ds[v] = xr.full_like(template_ds[v], np.nan, dtype=float)
             break
 
     if template_ds is None:
@@ -57,7 +59,7 @@ def stack_models(model_datasets: dict[str, xr.Dataset], expected_models: list[st
             ds = template_ds.copy(deep=True)
         aligned.append(ds)
 
-    stacked = xr.concat(aligned, pd.Index(expected_models, name="model"))
+    stacked = xr.concat(aligned, pd.Index(expected_models, name="model"), join="override")
 
     # Compute available mask: (time, model)
     # A model is available if it has at least some valid (non-NaN) data

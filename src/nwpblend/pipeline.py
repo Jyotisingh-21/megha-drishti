@@ -163,7 +163,8 @@ def run_daily(date: str, domain: dict, demo: bool = False, skip_download: bool =
 
             log_stage("harmonise", t0, "SUCCESS", f"Models loaded: {stacked_models.model.values}")
         except Exception as e:
-            report["errors"].append(f"Harmonise failed: {e}")
+            import traceback
+            report["errors"].append(f"Harmonise failed: {e}\n{traceback.format_exc()}")
             log_stage("harmonise", t0, "FAILED", str(e))
 
         # 3. Blending & Export

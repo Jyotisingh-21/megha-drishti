@@ -56,7 +56,7 @@ def probe_and_fetch(target_date, domain, leads, variables):
             target_file = os.path.join(archive_dir, f"raw_f{lead_str}.grib")
             target_files.append(target_file)
 
-            if not os.path.exists(target_file):
+            if not os.path.exists(target_file) or os.path.getsize(target_file) == 0:
                 s3_path = f"noaa-gfs-bdp-pds/gfs.{date_str}/{time_str}/atmos/gfs.t{time_str}z.pgrb2.0p25.f{lead_str}"
                 idx_path = s3_path + ".idx"
 
@@ -136,14 +136,50 @@ def _process_files(target_files, domain, init_dt):
 
     for target_file in target_files:
         try:
-            ds = xr.open_dataset(
-                target_file, engine="cfgrib", filter_by_keys={"typeOfLevel": "surface"}
-            )
-            ds2 = xr.open_dataset(
-                target_file, engine="cfgrib", filter_by_keys={"typeOfLevel": "heightAboveGround"}
-            )
+            groups = [
+                {"shortName": "t2m"},
+                {"shortName": "prate"},
+                {"shortName": "10u"},
+                {"shortName": "10v"},
+                {"shortName": "gust"},
+            ]
+            parts = {}
+            primary_step = None
+            for filt in groups:
+                try:
+                    part = xr.open_dataset(
+                        target_file,
+                        engine="cfgrib",
+                        backend_kwargs={"filter_by_keys": filt},
+                    )
+                    if "heightAboveGround" in part.coords:
+                        part = part.drop_vars("heightAboveGround")
+                    if "surface" in part.coords:
+                        part = part.drop_vars("surface")
+                    
+                    if primary_step is None and "step" in part.dims:
+                        primary_step = part.step
+                        
+                    for vname in part.data_vars:
+                        parts[vname] = part[vname]
+                except Exception:
+                    pass
 
-            ds = xr.merge([ds, ds2], compat="override")
+            if not parts:
+                logger.error(f"No recognised variables found in {target_file}")
+                return None
+
+            aligned = {}
+            for vname, da in parts.items():
+                if "valid_time" in da.coords:
+                    da = da.drop_vars("valid_time")
+                if "step" in da.dims and primary_step is not None:
+                    da = da.reindex(step=primary_step, method=None)
+                elif primary_step is not None and "step" not in da.dims:
+                    da = da.expand_dims(step=primary_step)
+                aligned[vname] = da
+
+            ds = xr.Dataset(aligned)
 
             lat_slice = slice(domain["lat_max"] + 1, domain["lat_min"] - 1)
             lon_slice = slice(domain["lon_min"] - 1, domain["lon_max"] + 1)
@@ -197,8 +233,9 @@ def _process_files(target_files, domain, init_dt):
             out_vars["gust10m"].attrs["units"] = "m s-1"
 
         out_ds = xr.Dataset(out_vars)
-        if "time" not in out_ds.coords:
-            out_ds = out_ds.expand_dims({"time": [init_dt]})
+        if "time" not in out_ds.dims:
+            dt_naive = pd.to_datetime(init_dt).tz_localize(None)
+            out_ds = out_ds.expand_dims({"time": [dt_naive]})
 
         return out_ds
     except Exception as e:
