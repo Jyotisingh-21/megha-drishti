@@ -1,5 +1,6 @@
 import streamlit as st
 
+
 def apply_global_styles():
     st.markdown(
         """
@@ -71,5 +72,5 @@ def apply_global_styles():
         }
         </style>
         """,
-        unsafe_allow_html=True
+        unsafe_allow_html=True,
     )

@@ -45,18 +45,19 @@ def test_synthetic_schema():
     # We built AI to have lower temperature error at long leads than NWP
     assert ai_rmse_lead10 < nwp_rmse_lead10
 
+
 def test_spatial_correlation():
     truth, _, _, _ = generate_synthetic_data(
         lat_min=10, lat_max=20, lon_min=70, lon_max=80, resolution=1.0, days=5
     )
-    
-    t2m = truth["t2m"].values # (time, lat, lon)
-    
+
+    t2m = truth["t2m"].values  # (time, lat, lon)
+
     # Calculate adjacent-cell Pearson correlation along longitude
     # Flatten the arrays to compute a single correlation coefficient
     # We shift by 1 along the lon axis
     t1 = t2m[:, :, :-1].flatten()
     t2 = t2m[:, :, 1:].flatten()
-    
+
     corr = np.corrcoef(t1, t2)[0, 1]
     assert corr > 0.8, f"Spatial correlation is too low: {corr:.3f}"

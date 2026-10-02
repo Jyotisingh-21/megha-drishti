@@ -1,12 +1,14 @@
 import json
-import pytest
-import sys
 import os
+import sys
+
+import pytest
 
 # Add project root to sys.path to import dashboard.geo
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from shapely.geometry import shape, Point
+from shapely.geometry import Point, shape
+
 
 def load_india_boundary():
     with open("dashboard/assets/states.geojson", "r", encoding="utf-8") as f:
@@ -14,12 +16,14 @@ def load_india_boundary():
     # Combine all states into a single MultiPolygon or GeometryCollection
     polygons = [shape(feature["geometry"]) for feature in data["features"]]
     from shapely.ops import unary_union
+
     india_union = unary_union(polygons)
     return india_union, data["features"]
 
+
 def test_survey_of_india_boundaries():
     india_union, features = load_india_boundary()
-    
+
     required_points = {
         "Gilgit": (74.31, 35.92),
         "Muzaffarabad": (73.47, 34.37),
@@ -30,15 +34,15 @@ def test_survey_of_india_boundaries():
         "Tawang": (91.87, 27.59),
         "Itanagar": (93.61, 27.08),
         "Port Blair (Andaman)": (92.73, 11.66),
-        "Kavaratti (Lakshadweep)": (72.63, 10.56)
+        "Kavaratti (Lakshadweep)": (72.63, 10.56),
     }
-    
+
     failed_points = []
     for name, (lon, lat) in required_points.items():
         pt = Point(lon, lat)
         if not india_union.contains(pt) and not india_union.intersects(pt.buffer(0.01)):
             failed_points.append(name)
-            
+
     # Metadata Checks with Alias Map
     state_names = []
     for feat in features:
@@ -46,6 +50,7 @@ def test_survey_of_india_boundaries():
         name = props.get("ST_NM", props.get("NAME_1", props.get("name", "")))
         if name:
             from dashboard.geo import get_display_name
+
             state_names.append(get_display_name(name).lower())
 
     # Check known limitations without failing the test
@@ -56,10 +61,12 @@ def test_survey_of_india_boundaries():
     if "ladakh" not in names_concat:
         missing_or_merged.append("Ladakh (Merged with J&K)")
     if "dadra" not in names_concat or "daman" not in names_concat:
-        missing_or_merged.append("Dadra & Nagar Haveli and Daman & Diu (Pre-2020 merger representation)")
-        
+        missing_or_merged.append(
+            "Dadra & Nagar Haveli and Daman & Diu (Pre-2020 merger representation)"
+        )
+
     # Write BOUNDARY_SOURCE.md
-    source_content = f"""# Boundary Source Information
+    source_content = """# Boundary Source Information
 
 - **Source URL**: https://raw.githubusercontent.com/datameet/maps/master/website/docs/data/geojson/states.geojson
 - **Commit Hash**: DataMeet master branch

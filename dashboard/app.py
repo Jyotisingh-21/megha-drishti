@@ -1,6 +1,6 @@
-import streamlit as st
 import os
 
+import streamlit as st
 from components.styles import apply_global_styles
 from components.ui import render_header
 from data_loader import load_data
@@ -23,7 +23,7 @@ pages = {
         st.Page("pages/04_skill_drift.py", title="Skill & Drift", icon="📈"),
         st.Page("pages/05_explainability.py", title="Explainability", icon="🧠"),
         st.Page("pages/06_about.py", title="About", icon="ℹ️"),
-    ]
+    ],
 }
 
 pg = st.navigation(pages)

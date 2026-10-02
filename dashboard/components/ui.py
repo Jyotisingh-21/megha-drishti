@@ -1,22 +1,28 @@
-import streamlit as st
 import json
 import os
-from datetime import datetime
+from datetime import UTC, datetime, timezone
+
+import streamlit as st
+
 
 def render_header(is_demo: bool):
     # Read status from latest run report if available
     status = "SUCCESS"
-    report_file = f"../data/logs/run_report_{datetime.now().strftime('%Y-%m-%d')}.json"
+    report_file = f"../data/logs/run_report_{datetime.now(UTC).strftime('%Y-%m-%d')}.json"
     if os.path.exists(report_file):
         try:
             with open(report_file, "r") as f:
                 r = json.load(f)
                 status = r.get("status", "SUCCESS")
-        except:
+        except Exception:
             pass
 
     color = "#10B981" if status == "SUCCESS" else "#EF4444"
-    mode_badge = "<span style='background: #F59E0B; color: #000; padding: 2px 6px; border-radius: 4px; font-size: 0.8rem; font-weight: bold;'>DEMO</span>" if is_demo else "<span style='background: #10B981; color: #000; padding: 2px 6px; border-radius: 4px; font-size: 0.8rem; font-weight: bold;'>LIVE</span>"
+    mode_badge = (
+        "<span style='background: #F59E0B; color: #000; padding: 2px 6px; border-radius: 4px; font-size: 0.8rem; font-weight: bold;'>DEMO</span>"
+        if is_demo
+        else "<span style='background: #10B981; color: #000; padding: 2px 6px; border-radius: 4px; font-size: 0.8rem; font-weight: bold;'>LIVE</span>"
+    )
 
     st.markdown(
         f"""
@@ -37,8 +43,9 @@ def render_header(is_demo: bool):
             </div>
         </div>
         """,
-        unsafe_allow_html=True
+        unsafe_allow_html=True,
     )
+
 
 def kpi_card(title: str, value: str, subtitle: str = ""):
     st.markdown(
@@ -49,5 +56,5 @@ def kpi_card(title: str, value: str, subtitle: str = ""):
             <div style="font-size: 0.8rem; color: #00D2FF;">{subtitle}</div>
         </div>
         """,
-        unsafe_allow_html=True
+        unsafe_allow_html=True,
     )
