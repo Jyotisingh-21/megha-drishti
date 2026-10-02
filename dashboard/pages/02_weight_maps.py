@@ -9,6 +9,8 @@ st.set_page_config(layout="wide", page_title="Megha-Drishti | Weight Maps")
 st.title("Model Weights & Explainability")
 
 ds, is_demo = load_data()
+
+st.sidebar.warning("RUNNING IN DEMO MODE") if is_demo else st.sidebar.success("RUNNING IN REAL MODE")
 variables = [v for v in ds.data_vars if v != "available"] if ds.data_vars else ["precip"]
 
 st.info(

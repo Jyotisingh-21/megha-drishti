@@ -34,6 +34,8 @@ st.query_params["lon"] = str(lon_input)
 st.write(f"**Analyzing location:** {lat_input:.2f}°N, {lon_input:.2f}°E")
 
 ds, is_demo = load_data()
+
+st.sidebar.warning("RUNNING IN DEMO MODE") if is_demo else st.sidebar.success("RUNNING IN REAL MODE")
 variables = [v for v in ds.data_vars if v != "available"] if ds.data_vars else ["precip"]
 var = st.selectbox("Variable", variables)
 

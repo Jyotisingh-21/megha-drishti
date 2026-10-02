@@ -28,6 +28,8 @@ else:
     thresh = thresholds["wind_gusts_kmh"]["strong"] * (1000 / 3600)  # km/h to m/s
 
 ds, is_demo = load_data()
+
+st.sidebar.warning("RUNNING IN DEMO MODE") if is_demo else st.sidebar.success("RUNNING IN REAL MODE")
 if var not in ds.data_vars:
     var = next(iter(ds.data_vars.keys()))
 
