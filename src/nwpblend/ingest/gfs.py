@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 def probe_and_fetch(target_date, domain, leads, variables):
-    fs = s3fs.S3FileSystem(anon=True)
+    fs = s3fs.S3FileSystem(anon=True, config_kwargs={"read_timeout": 15, "connect_timeout": 5})
 
     if target_date == "latest":
         now = datetime.now(UTC)
@@ -95,9 +95,9 @@ def probe_and_fetch(target_date, domain, leads, variables):
                                 config = yaml.safe_load(f)
                         except Exception:
                             config = {}
-                        download_timeout = config.get("download_timeout", 600)
+                        download_timeout = config.get("download_timeout", 30)
 
-                        executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+                        executor = concurrent.futures.ThreadPoolExecutor(max_workers=10)
                         future = executor.submit(do_fetch, idx_path, gfs_vars, s3_path, target_file)
                         future.result(timeout=download_timeout)
                     except Exception as e:
@@ -156,10 +156,10 @@ def _process_files(target_files, domain, init_dt):
                         part = part.drop_vars("heightAboveGround")
                     if "surface" in part.coords:
                         part = part.drop_vars("surface")
-                    
+
                     if primary_step is None and "step" in part.dims:
                         primary_step = part.step
-                        
+
                     for vname in part.data_vars:
                         parts[vname] = part[vname]
                 except Exception:
