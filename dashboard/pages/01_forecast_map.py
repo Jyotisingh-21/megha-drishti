@@ -168,32 +168,63 @@ else:
             f_sub = get_layer_data(m, ds, var, l_val)
         else:
             f_sub = get_layer_data(layer, ds, var, l_val)
-            
+
         frame_data = [
-            go.Contour(z=f_sub.values, x=ds.lon.values, y=ds.lat.values, colorscale=colorscale, opacity=0.8, contours={"showlines": False}),
+            go.Contour(
+                z=f_sub.values,
+                x=ds.lon.values,
+                y=ds.lat.values,
+                colorscale=colorscale,
+                opacity=0.8,
+                contours={"showlines": False},
+            ),
             # The other traces (borders, cities, invisible scatter) remain the same
             # Plotly will just update the first trace if we only pass one in the frame?
             # Actually, to be safe, we must update all traces or just the one that changes.
             # Traces 0 is Contour, 1 is borders, 2 is cities, 3 is invisible scatter.
         ]
         frames.append(go.Frame(data=frame_data, traces=[0], name=str(l_val)))
-    
+
     fig.frames = frames
 
     fig.update_layout(
-        updatemenus=[{
-            "type": "buttons",
-            "showactive": False,
-            "y": 1.0,
-            "x": 1.1,
-            "xanchor": "right",
-            "yanchor": "top",
-            "pad": {"t": 0, "r": 10},
-            "buttons": [
-                {"label": "Play", "method": "animate", "args": [None, {"frame": {"duration": 500, "redraw": True}, "fromcurrent": True, "transition": {"duration": 300, "easing": "quadratic-in-out"}}]},
-                {"label": "Pause", "method": "animate", "args": [[None], {"frame": {"duration": 0, "redraw": False}, "mode": "immediate", "transition": {"duration": 0}}]}
-            ]
-        }]
+        updatemenus=[
+            {
+                "type": "buttons",
+                "showactive": False,
+                "y": 1.0,
+                "x": 1.1,
+                "xanchor": "right",
+                "yanchor": "top",
+                "pad": {"t": 0, "r": 10},
+                "buttons": [
+                    {
+                        "label": "Play",
+                        "method": "animate",
+                        "args": [
+                            None,
+                            {
+                                "frame": {"duration": 500, "redraw": True},
+                                "fromcurrent": True,
+                                "transition": {"duration": 300, "easing": "quadratic-in-out"},
+                            },
+                        ],
+                    },
+                    {
+                        "label": "Pause",
+                        "method": "animate",
+                        "args": [
+                            [None],
+                            {
+                                "frame": {"duration": 0, "redraw": False},
+                                "mode": "immediate",
+                                "transition": {"duration": 0},
+                            },
+                        ],
+                    },
+                ],
+            }
+        ]
     )
 
 fig.update_layout(

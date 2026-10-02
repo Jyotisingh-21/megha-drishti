@@ -18,6 +18,11 @@ domain_igp:
 archive_retention_days: 14
 ecmwf_mirrors: ["aws", "google", "ecmwf", "azure"]
 
+# Per-mirror download timeout in seconds.
+# check_real_data.py uses check_timeout (shorter); pipeline uses download_timeout.
+download_timeout: 600
+check_timeout: 90
+
 models:
   - ecmwf_ifs
   - gfs

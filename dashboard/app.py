@@ -17,7 +17,11 @@ if "language" not in st.session_state:
 
 # Render sidebar language toggle
 with st.sidebar:
-    st.session_state["language"] = st.radio("Language / भाषा", ["English", "Hindi"], index=0 if st.session_state["language"] == "English" else 1)
+    st.session_state["language"] = st.radio(
+        "Language / भाषा",
+        ["English", "Hindi"],
+        index=0 if st.session_state["language"] == "English" else 1,
+    )
     if st.session_state["language"] == "Hindi":
         st.warning("Note: Hindi translations need native-speaker review before operational use.")
 

@@ -11,14 +11,16 @@ st.set_page_config(layout="wide", page_title="Megha-Drishti | Event Replay")
 
 st.title("Event Replay")
 
-st.info("💡 Event replays evaluate how the model performed on historically significant extreme events.")
+st.info(
+    "💡 Event replays evaluate how the model performed on historically significant extreme events."
+)
 
 ds, is_demo = load_data()
 truth_file = "data/demo/truth.zarr" if is_demo else "data/processed/truth.zarr"
 
 if os.path.exists(truth_file):
     truth = xr.open_zarr(truth_file).load()
-    
+
     events = {
         "Wayanad Heavy Rain": {
             "start": "2024-07-29",
@@ -50,15 +52,15 @@ if os.path.exists(truth_file):
 
     for name, config in events.items():
         title = f"Synthetic scenario inspired by {name}" if is_demo else name
-        
+
         with st.expander(title):
             if is_demo:
                 st.error("DEMO: Scenario evaluation (synthetic)")
             else:
                 st.success("REAL: Scenario evaluation")
-                
+
             st.write(f"**Target Date Window:** {config['start']} to {config['end']}")
-            
+
             if len(times) > 0:
                 # Mock date mapping for demo exactly as in run_benchmark.py
                 if is_demo:
@@ -73,11 +75,15 @@ if os.path.exists(truth_file):
                     if config["var"] in t_slice:
                         max_obs = float(t_slice[config["var"]].max().values)
                         st.write(f"- **Max Observed {config['var']}**: {max_obs:.1f}")
-                        
+
                         if max_obs > config["thresh"]:
-                            st.write("- **Scenario Verdict**: **HIT** (Extreme threshold exceeded in observations and captured by model distribution)")
+                            st.write(
+                                "- **Scenario Verdict**: **HIT** (Extreme threshold exceeded in observations and captured by model distribution)"
+                            )
                         else:
-                            st.write("- **Scenario Verdict**: **MISS** (Event not captured synthetically)")
+                            st.write(
+                                "- **Scenario Verdict**: **MISS** (Event not captured synthetically)"
+                            )
                     else:
                         st.write("Variable not available.")
                 else:

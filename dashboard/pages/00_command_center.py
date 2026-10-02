@@ -14,6 +14,7 @@ st.set_page_config(layout="wide", page_title="Megha-Drishti | Command Center")
 
 ds, is_demo = load_data()
 
+
 # --- DATA LOADING ---
 def get_metrics(ds, is_demo):
     metrics = {"models_online": 0, "rmse_change": "N/A", "last_run": "Never", "is_demo": is_demo}
@@ -48,8 +49,9 @@ def get_metrics(ds, is_demo):
             reg_val = int(reg.regime_id.isel(time=-1).values)
             mapping = {0: "Pre-Monsoon", 1: "Monsoon", 2: "Post-Monsoon", 3: "Winter"}
             metrics["regime"] = mapping.get(reg_val, f"Cluster {reg_val}")
-        
+
     return metrics
+
 
 metrics = get_metrics(ds, is_demo)
 
@@ -63,7 +65,7 @@ if "lead" in sub.dims:
     sub = sub.isel(lead=0)
 
 if "model" in sub.dims:
-    sub = sub.mean(dim="model") # simple ensemble mean for alerts
+    sub = sub.mean(dim="model")  # simple ensemble mean for alerts
 
 precip_thr = thresholds["precip_mm_24h"]["heavy"]
 t2m_thr = thresholds["heatwave_celsius"]["absolute"]["plains"]
@@ -84,18 +86,30 @@ try:
     t_flat = sub["t2m"].values.flatten()
     lats = np.broadcast_to(sub.lat.values[:, None], (len(sub.lat), len(sub.lon))).flatten()
     lons = np.broadcast_to(sub.lon.values[None, :], (len(sub.lat), len(sub.lon))).flatten()
-    
+
     risk_list = []
     # top 3 rain
     p_idx = np.argsort(p_flat)[-3:][::-1]
     for i in p_idx:
         if p_flat[i] > precip_thr:
-            risk_list.append({"Location": f"{lats[i]:.1f}°N, {lons[i]:.1f}°E", "Hazard": "Heavy Rain", "Value": f"{p_flat[i]:.1f} mm"})
+            risk_list.append(
+                {
+                    "Location": f"{lats[i]:.1f}°N, {lons[i]:.1f}°E",
+                    "Hazard": "Heavy Rain",
+                    "Value": f"{p_flat[i]:.1f} mm",
+                }
+            )
     # top 2 heat
     t_idx = np.argsort(t_flat)[-2:][::-1]
     for i in t_idx:
         if t_flat[i] > t2m_thr:
-            risk_list.append({"Location": f"{lats[i]:.1f}°N, {lons[i]:.1f}°E", "Hazard": "Heatwave", "Value": f"{t_flat[i]:.1f} °C"})
+            risk_list.append(
+                {
+                    "Location": f"{lats[i]:.1f}°N, {lons[i]:.1f}°E",
+                    "Hazard": "Heatwave",
+                    "Value": f"{t_flat[i]:.1f} °C",
+                }
+            )
 except Exception:
     risk_list = []
 
@@ -117,9 +131,15 @@ with kpi1:
 with kpi2:
     st.metric("Today's Regime" if language == "English" else "आज का मौसम शासन", metrics["regime"])
 with kpi3:
-    st.metric("Active Alerts (Grid cells)" if language == "English" else "सक्रिय अलर्ट", active_alerts)
+    st.metric(
+        "Active Alerts (Grid cells)" if language == "English" else "सक्रिय अलर्ट", active_alerts
+    )
 with kpi4:
-    st.metric("Blend RMSE vs Best" if language == "English" else "ब्लेंड RMSE", metrics["rmse_change"], delta_color="inverse")
+    st.metric(
+        "Blend RMSE vs Best" if language == "English" else "ब्लेंड RMSE",
+        metrics["rmse_change"],
+        delta_color="inverse",
+    )
 
 st.divider()
 
@@ -129,16 +149,29 @@ with col_map:
     st.subheader("National Alert Thumbnail" if language == "English" else "राष्ट्रीय अलर्ट थंबनेल")
     if active_alerts > 0:
         fig = px.imshow((sub["precip"] > precip_thr).values, color_continuous_scale="Reds")
-        fig.update_layout(title="Heavy Rain Alerts" if language == "English" else "भारी बारिश अलर्ट", coloraxis_showscale=False, plot_bgcolor="#0A192F", paper_bgcolor="rgba(0,0,0,0)")
+        fig.update_layout(
+            title="Heavy Rain Alerts" if language == "English" else "भारी बारिश अलर्ट",
+            coloraxis_showscale=False,
+            plot_bgcolor="#0A192F",
+            paper_bgcolor="rgba(0,0,0,0)",
+        )
         fig.update_xaxes(visible=False)
         fig.update_yaxes(visible=False)
         st.plotly_chart(fig, use_container_width=True)
     else:
-        st.info("No active hazards on map." if language == "English" else "मानचित्र पर कोई सक्रिय खतरा नहीं है।")
+        st.info(
+            "No active hazards on map."
+            if language == "English"
+            else "मानचित्र पर कोई सक्रिय खतरा नहीं है।"
+        )
 
 with col_risk:
     st.subheader("Top Regions at Risk" if language == "English" else "खतरे वाले शीर्ष क्षेत्र")
     if risk_list:
         st.dataframe(risk_list, hide_index=True, use_container_width=True)
     else:
-        st.success("No extreme points exceeding thresholds." if language == "English" else "सीमा से अधिक कोई चरम बिंदु नहीं।")
+        st.success(
+            "No extreme points exceeding thresholds."
+            if language == "English"
+            else "सीमा से अधिक कोई चरम बिंदु नहीं।"
+        )

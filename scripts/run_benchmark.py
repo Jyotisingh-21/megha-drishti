@@ -47,10 +47,13 @@ def main():
 
         # STALE CACHE GUARD: Check if dimensions match between truth and models
         if len(models.lat) != len(truth.lat) or len(models.lon) != len(truth.lon):
-            logger.warning("Stale cache detected: 'lat' or 'lon' sizes mismatch between truth and models! Rebuilding stacked models...")
+            logger.warning(
+                "Stale cache detected: 'lat' or 'lon' sizes mismatch between truth and models! Rebuilding stacked models..."
+            )
             import shutil
+
             shutil.rmtree("data/processed/stacked_models.zarr")
-            
+
             # Restack
             stacked = stack_models(m_dict, expected)
             write_store(stacked, "data/processed/stacked_models.zarr")
@@ -184,8 +187,10 @@ def main():
             "metadata": {
                 "timestamp": datetime.datetime.now(datetime.UTC).isoformat(),
                 "git_commit": commit_hash,
-                "data_resolution": float(models.lat[1] - models.lat[0]) if len(models.lat) > 1 else 1.0,
-                "data_mode": "synthetic"
+                "data_resolution": float(models.lat[1] - models.lat[0])
+                if len(models.lat) > 1
+                else 1.0,
+                "data_mode": "synthetic",
             },
             "blend_rmse_change_pct": blend_rmse_change,
             "ablation": ablation_df.to_dict(orient="records"),

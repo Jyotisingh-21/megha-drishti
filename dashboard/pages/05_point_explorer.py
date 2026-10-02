@@ -183,11 +183,13 @@ else:
     st.write("**English Bulletin:**")
     st.info(f"📍 This is the bulletin for {lat_input:.2f}°N, {lon_input:.2f}°E.")
 
+
 def generate_pdf():
     pdf = FPDF()
     pdf.add_page()
-    
+
     import os
+
     font_path = "dashboard/assets/fonts/NotoSansDevanagari-Regular.ttf"
     if os.path.exists(font_path):
         pdf.add_font("NotoSansDevanagari", "", font_path)
@@ -205,9 +207,14 @@ def generate_pdf():
         pdf.cell(200, 10, txt="Megha-Drishti Point Bulletin", ln=1, align="C")
         pdf.cell(200, 10, txt=f"Location: {lat_input}N, {lon_input}E", ln=1, align="C")
         pdf.cell(200, 10, txt=f"Variable: {var.upper()}", ln=1, align="C")
-        
+
     if language == "Hindi" and not has_font:
-        pdf.cell(200, 10, txt="NOTE: English-only PDF export as core fonts do not render Devanagari.", ln=1)
+        pdf.cell(
+            200,
+            10,
+            txt="NOTE: English-only PDF export as core fonts do not render Devanagari.",
+            ln=1,
+        )
 
     # Output to base64
     return bytes(pdf.output())

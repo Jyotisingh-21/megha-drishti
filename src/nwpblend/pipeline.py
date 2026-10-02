@@ -15,15 +15,16 @@ from nwpblend.export.writer import export_netcdf
 
 logger = logging.getLogger(__name__)
 
+
 def cleanup_archive(config):
     """Deletes archived runs older than retention threshold."""
     retention_days = config.get("archive_retention_days", 14)
     cutoff = datetime.now(UTC) - pd.Timedelta(days=retention_days)
-    
+
     archive_dir = "data/archive"
     if not os.path.exists(archive_dir):
         return
-        
+
     for source in os.listdir(archive_dir):
         source_dir = os.path.join(archive_dir, source)
         if not os.path.isdir(source_dir):
@@ -37,6 +38,7 @@ def cleanup_archive(config):
                     logger.info(f"Deleted old archive: {path_to_delete}")
             except ValueError:
                 pass
+
 
 def check_lock():
     lockfile = "data/logs/pipeline.lock"
@@ -53,16 +55,18 @@ def check_lock():
                     return False
             except Exception:
                 os.remove(lockfile)
-    
+
     os.makedirs(os.path.dirname(lockfile), exist_ok=True)
     with open(lockfile, "w") as f:
         json.dump({"pid": os.getpid(), "start_time": datetime.now(UTC).isoformat()}, f)
     return True
 
+
 def release_lock():
     lockfile = "data/logs/pipeline.lock"
     if os.path.exists(lockfile):
         os.remove(lockfile)
+
 
 def run_daily(date: str, domain: dict, demo: bool = False, skip_download: bool = False):
     """
@@ -97,9 +101,9 @@ def run_daily(date: str, domain: dict, demo: bool = False, skip_download: bool =
         # Load config
         with open("configs/default.yaml", "r") as f:
             config = yaml.safe_load(f)
-            
+
         variables = config.get("variables", ["precip", "t2m", "wind10m", "gust10m"])
-        leads = [i * 24 for i in config.get("lead_times_days", [1,2,3,4,5,6,7,8,9,10])]
+        leads = [i * 24 for i in config.get("lead_times_days", [1, 2, 3, 4, 5, 6, 7, 8, 9, 10])]
 
         cleanup_archive(config)
 
@@ -107,7 +111,7 @@ def run_daily(date: str, domain: dict, demo: bool = False, skip_download: bool =
         t0 = time.time()
         models = {}
         expected_models = config.get("models", ["ecmwf_ifs", "gfs"])
-        
+
         try:
             if demo:
                 # In demo mode, just load the static demo files
@@ -120,7 +124,7 @@ def run_daily(date: str, domain: dict, demo: bool = False, skip_download: bool =
             elif not skip_download:
                 import nwpblend.ingest.ecmwf as ecmwf_ingest
                 import nwpblend.ingest.gfs as gfs_ingest
-                
+
                 # Fetch ECMWF
                 if "ecmwf_ifs" in expected_models:
                     ds, _run_dt = ecmwf_ingest.probe_and_fetch(date, domain, leads, variables)
@@ -128,7 +132,7 @@ def run_daily(date: str, domain: dict, demo: bool = False, skip_download: bool =
                         models["ecmwf_ifs"] = ds
                     else:
                         report["warnings"].append("ECMWF failed. Dropping from blend.")
-                
+
                 # Fetch GFS
                 if "gfs" in expected_models:
                     ds, _run_dt = gfs_ingest.probe_and_fetch(date, domain, leads, variables)
@@ -136,7 +140,7 @@ def run_daily(date: str, domain: dict, demo: bool = False, skip_download: bool =
                         models["gfs"] = ds
                     else:
                         report["warnings"].append("GFS failed. Dropping from blend.")
-                
+
                 log_stage("ingest", t0, "SUCCESS")
         except Exception as e:
             report["errors"].append(f"Ingest failed: {e}")
@@ -148,9 +152,9 @@ def run_daily(date: str, domain: dict, demo: bool = False, skip_download: bool =
         try:
             if not models:
                 raise ValueError("No models available to stack.")
-                
+
             from nwpblend.harmonise.store import stack_models, write_store
-            
+
             # Use only available models and normalize their weights logically later
             stacked_models = stack_models(models, list(models.keys()))
             os.makedirs("data/processed", exist_ok=True)
@@ -169,7 +173,11 @@ def run_daily(date: str, domain: dict, demo: bool = False, skip_download: bool =
                 os.makedirs("data/output", exist_ok=True)
                 out_file = f"data/output/blend_{date}.nc"
                 metadata = {"issue_date": date, "models_used": list(stacked_models.model.values)}
-                blend_mock = stacked_models.isel(model=0).drop_vars("model") if "model" in stacked_models.dims else stacked_models
+                blend_mock = (
+                    stacked_models.isel(model=0).drop_vars("model")
+                    if "model" in stacked_models.dims
+                    else stacked_models
+                )
                 export_netcdf(blend_mock, out_file, metadata=metadata)
                 log_stage("blend_and_export", t0, "SUCCESS", f"Saved to {out_file}")
             else:
@@ -189,7 +197,7 @@ def run_daily(date: str, domain: dict, demo: bool = False, skip_download: bool =
         timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
         with open(f"data/logs/run_report_{timestamp}.json", "w") as f:
             json.dump(report, f, indent=2)
-            
+
         # For dashboard
         with open("data/logs/run_report_latest.json", "w") as f:
             json.dump(report, f, indent=2)

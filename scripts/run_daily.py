@@ -21,9 +21,20 @@ def main():
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
-    # Simple bounding box mapping
-    domains = {"india": {"lat_min": 6.0, "lat_max": 38.0, "lon_min": 68.0, "lon_max": 98.0}}
-    domain = domains.get(args.domain, domains["india"])
+    import yaml
+
+    with open("configs/default.yaml", "r") as f:
+        config = yaml.safe_load(f)
+
+    # We can accept preset names like "default" or "domain_igp"
+    if args.domain == "india" or args.domain == "default":
+        domain = config["domain"]
+    else:
+        domain = config.get(args.domain, config["domain"])
+
+    # Ensure resolution is set
+    if "resolution" not in domain:
+        domain["resolution"] = 0.25
 
     run_daily(date=args.date, domain=domain, demo=args.demo, skip_download=args.skip_download)
 
