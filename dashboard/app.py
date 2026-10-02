@@ -10,6 +10,22 @@ st.set_page_config(page_title="Megha-Drishti", page_icon="☁️", layout="wide"
 apply_global_styles()
 
 ds, is_demo = load_data()
+
+st.sidebar.warning("RUNNING IN DEMO MODE") if is_demo else st.sidebar.success("RUNNING IN REAL MODE")
+
+with st.sidebar:
+    st.markdown("---")
+    if ds is not None:
+        last_time = pd.to_datetime(ds.time.values[-1]).strftime("%Y-%m-%d %H:%M UTC")
+        next_time = (pd.to_datetime(ds.time.values[-1]) + pd.Timedelta(hours=24)).strftime("%Y-%m-%d %H:%M UTC")
+        st.caption(f"**Last updated:**\n{last_time}")
+        st.caption(f"**Next expected run:**\n~{next_time}")
+    
+    if st.button("Refresh Data", use_container_width=True):
+        st.cache_data.clear()
+        st.rerun()
+    st.markdown("---")
+
 render_header(is_demo)
 
 if "language" not in st.session_state:
