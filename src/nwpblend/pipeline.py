@@ -114,7 +114,9 @@ def run_daily(date: str, domain: dict, demo: bool = False, skip_download: bool =
     report["status"] = "FAILED" if report["errors"] else "SUCCESS"
 
     os.makedirs("data/logs", exist_ok=True)
-    with open(f"data/logs/run_report_{date}.json", "w") as f:
+    from datetime import timezone
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    with open(f"data/logs/run_report_{date}_{timestamp}.json", "w") as f:
         json.dump(report, f, indent=2)
 
     logger.info(f"Pipeline finished with status: {report['status']}")

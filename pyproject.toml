@@ -32,7 +32,9 @@ dependencies = [
     "s3fs",
     "gcsfs",
     "ecmwf-opendata",
-    "imdlib"
+    "imdlib",
+    "plotly",
+    "fpdf2"
 ]
 
 [project.optional-dependencies]

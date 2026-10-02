@@ -10,15 +10,15 @@ import xarray as xr
 def load_data():
     is_demo = True
     ds = None
-    if os.path.exists("../data/processed/stacked_models.zarr"):
+    if os.path.exists("data/processed/stacked_models.zarr"):
         try:
-            ds = xr.open_zarr("../data/processed/stacked_models.zarr").load()
+            ds = xr.open_zarr("data/processed/stacked_models.zarr").load()
         except Exception:
             pass
 
     if ds is None:
         try:
-            ds = xr.open_zarr("../data/demo/models/ecmwf_ifs.zarr").load()
+            ds = xr.open_zarr("data/demo/models/ecmwf_ifs.zarr").load()
         except Exception:
             pass
 

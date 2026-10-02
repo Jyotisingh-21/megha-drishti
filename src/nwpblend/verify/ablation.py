@@ -178,10 +178,11 @@ def _evaluate_step(
         # Brier for > 10mm
         bs = brier_score((p > 10.0).astype(float), (t > 10.0).astype(float)).mean().values
 
-        cs = contingency_scores(p > 10.0, t > 10.0)
-        pod = cs["POD"].mean().values
-        far = cs["FAR"].mean().values
-        csi = cs["CSI"].mean().values
+        # contingency_scores returns a tuple: pod, far, csi
+        pod_vals, far_vals, csi_vals = contingency_scores(p > 10.0, t > 10.0)
+        pod = pod_vals.mean().values
+        far = far_vals.mean().values
+        csi = csi_vals.mean().values
 
         # FSS
         score_fss = fss(p, t, threshold=10.0, window_size=3).mean().values

@@ -21,7 +21,8 @@ def equal_weight(models: xr.Dataset, available: xr.DataArray) -> xr.Dataset:
     masked_models = models.where(mask)
 
     # Mean over model dimension (nanmean)
-    return masked_models.mean(dim="model")
+    res = masked_models.mean(dim="model")
+    return res.drop_vars("available", errors="ignore")
 
 
 def ewa(
@@ -111,7 +112,7 @@ def ewa(
                 (masked_models[var].sel(time=t) * w).sum(dim="model", skipna=True).values
             )
 
-    return blended
+    return blended.drop_vars("available", errors="ignore")
 
 
 def bma(
@@ -179,4 +180,4 @@ def bma(
                 (masked_models[var].sel(time=t) * w).sum(dim="model", skipna=True).values
             )
 
-    return blended
+    return blended.drop_vars("available", errors="ignore")
