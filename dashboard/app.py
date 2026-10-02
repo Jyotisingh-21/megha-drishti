@@ -21,6 +21,17 @@ with st.sidebar:
     if st.session_state["language"] == "Hindi":
         st.warning("Note: Hindi translations need native-speaker review before operational use.")
 
+    with st.popover("About this forecast"):
+        st.markdown("""
+        **Sources:** ECMWF Open Data, NOAA GFS, AI models.
+        **Versions:** NWP v2024, AI models v1.
+        **Training Window:** 2023-2024 Monsoon.
+        **Limitations:**
+        - DEMO mode runs on synthetic statistical data.
+        - The India boundary map is a provisional community dataset and has NOT been validated by the Survey of India.
+        - Hindi translations are automated and unreviewed.
+        """)
+
 # Navigation
 pages = {
     "Operations": [

@@ -105,7 +105,7 @@ No single forecast system wins everywhere. Skill changes with region, season, le
 ```bash
 # 1. Clone and set up
 git clone https://github.com/Jyotisingh-21/megha-drishti.git
-cd hybrid-nwp-blend
+cd megha-drishti
 python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -e ".[dev]"
 
@@ -113,12 +113,23 @@ pip install -e ".[dev]"
 python scripts/run_daily.py --demo
 
 # 3. Launch the API and dashboard
-uvicorn nwpblend.api.main:app --reload         # http://localhost:8000/docs
+uvicorn src.nwpblend.api.main:app --reload         # http://localhost:8000/docs
 streamlit run dashboard/app.py                 # http://localhost:8501
 
 # 4. Run on real open data for a date
 python scripts/run_daily.py --date 2024-07-30 --domain india
 ```
+
+### Screenshots
+
+See the UI in action (generated automatically):
+- [Command Center](docs/figures/dashboard_command_center.png)
+- [Forecast Map](docs/figures/dashboard_forecast_map.png)
+- [Point Explorer](docs/figures/dashboard_point_explorer.png)
+- [Extreme Guidance](docs/figures/dashboard_extreme_guidance.png)
+- [Event Replay](docs/figures/dashboard_event_replay.png)
+- [Weight Maps](docs/figures/dashboard_weight_maps.png)
+- [Skill & Drift](docs/figures/dashboard_skill_and_drift.png)
 
 ### Credentials (only for real data)
 

@@ -25,50 +25,48 @@ def apply_global_styles():
             --color-pangu: #EC4899;
         }
         
-        /* Remove default main padding */
+        /* Fade in animation */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
         .block-container {
             padding-top: 2rem !important;
+            animation: fadeIn 0.4s ease-out forwards;
         }
-        
-        /* Modern font stack */
-        html, body, [class*="css"] {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-        }
-        
-        /* Header bar */
-        .header-bar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px 20px;
-            background: #151F32;
-            border-bottom: 1px solid #1E293B;
+
+        /* Metric Cards Hover */
+        [data-testid="stMetric"] {
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            padding: 10px;
             border-radius: 8px;
-            margin-bottom: 20px;
+            background: rgba(21, 31, 50, 0.4);
+            border: 1px solid rgba(255,255,255,0.05);
         }
-        .header-title {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 1.2rem;
-            font-weight: 600;
-            color: #00D2FF;
+        [data-testid="stMetric"]:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 210, 255, 0.1);
+            background: rgba(21, 31, 50, 0.7);
         }
-        
-        .status-dot {
-            height: 10px;
-            width: 10px;
-            background-color: #10B981;
-            border-radius: 50%;
-            display: inline-block;
-            box-shadow: 0 0 8px #10B981;
-            animation: pulse 2s infinite;
+
+        /* Number count-up fallback (visual only since we can't inject JS easily) */
+        [data-testid="stMetricValue"] {
+            animation: fadeIn 0.8s ease-out;
+            color: #E2E8F0;
         }
-        
-        @keyframes pulse {
-            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
-            70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
-            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+
+        /* Accessibility: High contrast colors for text */
+        p, h1, h2, h3, h4, h5, h6, span {
+            color: #F8FAFC;
+        }
+
+        /* Prefers Reduced Motion */
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                animation: none !important;
+                transition: none !important;
+            }
         }
         </style>
         """,

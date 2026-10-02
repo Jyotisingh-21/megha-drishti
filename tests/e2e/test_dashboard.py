@@ -50,10 +50,13 @@ def test_dashboard_pages(page: Page, streamlit_server: str):
     # We will navigate using the sidebar links
     for title in pages_to_test:
         print(f"Testing page: {title}")
+        start_time = time.time()
         page.click(f"text={title}")
         # Wait for Streamlit to finish running
         page.wait_for_function('() => !document.querySelector("[data-testid=\\"stStatusWidget\\"]") || document.querySelector("[data-testid=\\"stStatusWidget\\"]").innerText === ""', timeout=30000)
         time.sleep(3) # Allow plots to render
+        load_time = time.time() - start_time
+        print(f"Page '{title}' loaded in {load_time:.2f} seconds.")
         
         # Verify NO exception boxes
         exceptions = page.locator(".stException").count()
@@ -72,5 +75,5 @@ def test_map_click_and_deep_link(page: Page, streamlit_server: str):
     time.sleep(3)
     
     # Verify it loaded the coordinates from query params
-    expect(page.locator("text=15.50")).to_be_visible()
-    expect(page.locator("text=73.50")).to_be_visible()
+    expect(page.get_by_text("15.50", exact=False).first).to_be_visible()
+    expect(page.get_by_text("73.50", exact=False).first).to_be_visible()
