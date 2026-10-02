@@ -14,14 +14,17 @@ render_header(is_demo)
 
 # Navigation
 pages = {
-    "Dashboard": [
+    "Operations": [
+        st.Page("pages/00_command_center.py", title="Command Center", icon="🏠"),
         st.Page("pages/01_forecast_map.py", title="Forecast Map", icon="🗺️"),
-        st.Page("pages/02_weight_maps.py", title="Weight Maps", icon="⚖️"),
-        st.Page("pages/03_extreme_guidance.py", title="Extreme Guidance", icon="⚠️"),
+        st.Page("pages/05_point_explorer.py", title="Point Explorer", icon="🔍"),
+        st.Page("pages/03_extreme_guidance.py", title="Extreme Guidance", icon="🚨"),
     ],
     "Analysis": [
-        st.Page("pages/04_skill_drift.py", title="Skill & Drift", icon="📈"),
-        st.Page("pages/05_explainability.py", title="Explainability", icon="🧠"),
+        st.Page("pages/02_weight_maps.py", title="Weight & Explainability", icon="🧠"),
+        st.Page("pages/04_event_replay.py", title="Event Replay", icon="⏪"),
+        st.Page("pages/06_skill_drift.py", title="Skill & Drift", icon="📈"),
+        st.Page("pages/07_pipeline_status.py", title="Pipeline Status", icon="⚙️"),
         st.Page("pages/06_about.py", title="About", icon="ℹ️"),
     ],
 }
