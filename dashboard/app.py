@@ -1,5 +1,6 @@
 import os
 
+import pandas as pd
 import streamlit as st
 from components.styles import apply_global_styles
 from components.ui import render_header
