@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "Hybrid AI-NWP Forecast Blending System"
 readme = "README.md"
 requires-python = ">=3.11"
-dependencies = [ "numpy", "pandas", "xarray", "zarr", "dask", "netCDF4", "cfgrib", "scipy", "scikit-learn", "statsmodels", "lightgbm", "torch", "shap", "minisom", "pyyaml", "matplotlib", "fastapi", "uvicorn", "streamlit", "requests", "s3fs", "gcsfs", "ecmwf-opendata", "imdlib", "plotly", "fpdf2",]
+dependencies = [ "numpy", "pandas", "xarray", "zarr", "dask", "netCDF4", "cfgrib", "scipy", "scikit-learn", "statsmodels", "lightgbm", "torch", "shap", "minisom", "pyyaml", "matplotlib", "fastapi", "uvicorn", "streamlit", "requests", "s3fs", "gcsfs", "ecmwf-opendata", "imdlib", "plotly", "fpdf2", "shapely",]
 
 [project.optional-dependencies]
 regrid = [ "xesmf",]
