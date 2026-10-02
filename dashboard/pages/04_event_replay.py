@@ -18,6 +18,12 @@ st.info(
 ds, is_demo = load_data()
 
 st.sidebar.warning("RUNNING IN DEMO MODE") if is_demo else st.sidebar.success("RUNNING IN REAL MODE")
+
+if not is_demo and os.path.exists("docs/events.md"):
+    with open("docs/events.md", "r", encoding="utf-8") as f:
+        st.markdown(f.read())
+    st.stop()
+
 truth_file = "data/demo/truth.zarr" if is_demo else "data/processed/truth.zarr"
 
 if os.path.exists(truth_file):

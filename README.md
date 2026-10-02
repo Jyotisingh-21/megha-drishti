@@ -154,7 +154,16 @@ See the UI in action (generated automatically):
 - **Ablation:** raw → + bias correction → + regimes → + gating → + EMOS, showing what each part adds.
 - **Event replay:** Wayanad landslides 2024, Cyclone Biparjoy 2023, Cyclone Remal 2024, Delhi heatwave 2024.
 
-> **Targets vs results.** NOTE: The design targets (10–15% lower rainfall RMSE than the best single model, 15–25% higher CSI for heavy rain) are design objectives. **The current metrics available in this repository (`docs/results_demo.md`) are generated using statistically mocked synthetic data (as NCMRWF datasets are firewalled). They demonstrate that the mathematical pipeline is structurally sound, but they do NOT reflect verified real-world meteorological skill scores.**
+> **Targets vs results.** The design targets (10-15% lower rainfall RMSE than the best single model, 15-25% higher CSI for heavy rain) are design objectives. **The metrics available in this repository (docs/results.md) are generated using verified real-world meteorological data from ECMWF and GFS, evaluated against IMD and ARCO-ERA5.** Note that due to limited training history and S3 rate limits during ingestion, the current blending weights may not significantly outperform the best single model. See the results document for exact figures.
+
+## 8.5 Scheduling
+
+For Windows, run scripts\schedule_windows.ps1 to register a daily Task Scheduler job.
+
+For Linux, add the following to your crontab (crontab -e):
+`ash
+0 6 * * * cd /path/to/megha-drishti && /path/to/venv/bin/python scripts/run_daily.py --date latest >> data/logs/cron.log 2>&1
+`
 
 ## 9. Roadmap
 
