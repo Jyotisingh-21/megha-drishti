@@ -22,3 +22,10 @@ heatwave_celsius:
 wind_gusts_kmh:
   strong: 30.0
   gale: 62.0
+
+# Dashboard convention for probability-to-color mapping (Not an official IMD warning)
+alert_colors:
+  green: 0.0
+  yellow: 0.3
+  orange: 0.6
+  red: 0.8

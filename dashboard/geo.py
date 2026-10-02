@@ -18,31 +18,38 @@ def get_india_borders_trace():
 
     lons = []
     lats = []
+    texts = []
 
     for feature in data["features"]:
         geom = feature["geometry"]
+        state_name = get_display_name(feature["properties"].get("ST_NM", "Unknown"))
         if geom["type"] == "Polygon":
             for ring in geom["coordinates"]:
                 for coord in ring:
                     lons.append(coord[0])
                     lats.append(coord[1])
+                    texts.append(state_name)
                 lons.append(None)
                 lats.append(None)
+                texts.append(None)
         elif geom["type"] == "MultiPolygon":
             for poly in geom["coordinates"]:
                 for ring in poly:
                     for coord in ring:
                         lons.append(coord[0])
                         lats.append(coord[1])
+                        texts.append(state_name)
                     lons.append(None)
                     lats.append(None)
+                    texts.append(None)
 
     return go.Scatter(
         x=lons,
         y=lats,
+        text=texts,
         mode="lines",
         line={"color": "white", "width": 1},
-        hoverinfo="skip",
+        hoverinfo="text",
         showlegend=False,
     )
 

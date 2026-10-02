@@ -49,9 +49,14 @@ else:
     # Mock probability from single model
     prob = xr.where(sub > thresh, 0.8, 0.1)
 
-st.info(
-    f"💡 Showing probability of exceeding {thresh:.1f} for {var} based on configured IMD thresholds."
-)
+language = st.session_state.get("language", "English")
+
+if language == "Hindi":
+    st.info(f"💡 IMD मानकों के आधार पर {var} के {thresh:.1f} को पार करने की संभावना दिखाई जा रही है।")
+else:
+    st.info(
+        f"💡 Showing probability of exceeding {thresh:.1f} for {var} based on configured IMD thresholds."
+    )
 
 fig = go.Figure()
 

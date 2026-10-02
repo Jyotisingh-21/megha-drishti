@@ -12,6 +12,15 @@ apply_global_styles()
 ds, is_demo = load_data()
 render_header(is_demo)
 
+if "language" not in st.session_state:
+    st.session_state["language"] = "English"
+
+# Render sidebar language toggle
+with st.sidebar:
+    st.session_state["language"] = st.radio("Language / भाषा", ["English", "Hindi"], index=0 if st.session_state["language"] == "English" else 1)
+    if st.session_state["language"] == "Hindi":
+        st.warning("Note: Hindi translations need native-speaker review before operational use.")
+
 # Navigation
 pages = {
     "Operations": [

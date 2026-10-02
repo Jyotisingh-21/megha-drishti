@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = [ "setuptools>=61.0",]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -8,49 +8,17 @@ version = "0.1.0"
 description = "Hybrid AI-NWP Forecast Blending System"
 readme = "README.md"
 requires-python = ">=3.11"
-dependencies = [
-    "numpy",
-    "pandas",
-    "xarray",
-    "zarr",
-    "dask",
-    "netCDF4",
-    "cfgrib",
-    "scipy",
-    "scikit-learn",
-    "statsmodels",
-    "lightgbm",
-    "torch",
-    "shap",
-    "minisom",
-    "pyyaml",
-    "matplotlib",
-    "fastapi",
-    "uvicorn",
-    "streamlit",
-    "requests",
-    "s3fs",
-    "gcsfs",
-    "ecmwf-opendata",
-    "imdlib",
-    "plotly",
-    "fpdf2"
-]
+dependencies = [ "numpy", "pandas", "xarray", "zarr", "dask", "netCDF4", "cfgrib", "scipy", "scikit-learn", "statsmodels", "lightgbm", "torch", "shap", "minisom", "pyyaml", "matplotlib", "fastapi", "uvicorn", "streamlit", "requests", "s3fs", "gcsfs", "ecmwf-opendata", "imdlib", "plotly", "fpdf2",]
 
 [project.optional-dependencies]
-regrid = ["xesmf"]
-dev = [
-    "pytest",
-    "ruff",
-    "pytest-cov",
-    "httpx"
-]
-
-[tool.setuptools.packages.find]
-where = ["src"]
+regrid = [ "xesmf",]
+dev = [ "pytest", "ruff", "pytest-cov", "httpx", "playwright", "pytest-playwright", "pytest-asyncio",]
 
 [tool.ruff]
 line-length = 100
 
 [tool.ruff.lint]
-extend-ignore = ["BLE001", "F401", "S110"]
+extend-ignore = [ "BLE001", "F401", "S110",]
+
+[tool.setuptools.packages.find]
+where = [ "src",]

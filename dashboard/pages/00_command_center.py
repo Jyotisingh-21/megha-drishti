@@ -1,12 +1,13 @@
 import glob
 import json
 import os
-import yaml
-import xarray as xr
-import pandas as pd
+
 import numpy as np
-import streamlit as st
+import pandas as pd
 import plotly.express as px
+import streamlit as st
+import xarray as xr
+import yaml
 from data_loader import load_data
 
 st.set_page_config(layout="wide", page_title="Megha-Drishti | Command Center")
@@ -39,16 +40,14 @@ def get_metrics(ds, is_demo):
             chg = res.get("blend_rmse_change_pct", 0)
             metrics["rmse_change"] = f"{chg:.1f}%"
 
-    # Get Today's Regime
+    metrics["regime"] = "Unknown"
     regime_file = "data/demo/regimes.zarr" if is_demo else "data/processed/regimes.zarr"
     if os.path.exists(regime_file):
         reg = xr.open_zarr(regime_file)
-        if len(reg.time.values) > 0:
-            reg_val = int(reg.cluster.isel(time=-1).values)
+        if len(reg.time.values) > 0 and "regime_id" in reg:
+            reg_val = int(reg.regime_id.isel(time=-1).values)
             mapping = {0: "Pre-Monsoon", 1: "Monsoon", 2: "Post-Monsoon", 3: "Winter"}
             metrics["regime"] = mapping.get(reg_val, f"Cluster {reg_val}")
-    else:
-        metrics["regime"] = "Unknown"
         
     return metrics
 
@@ -100,44 +99,46 @@ try:
 except Exception:
     risk_list = []
 
+language = st.session_state.get("language", "English")
+
 # --- HEADER ---
 col1, col2 = st.columns([3, 1])
 with col1:
-    st.title("Command Center")
+    st.title("Command Center" if language == "English" else "कमांड सेंटर")
     if metrics["is_demo"]:
-        st.caption("🚀 RUNNING IN DEMO MODE")
+        st.caption("🚀 RUNNING IN DEMO MODE" if language == "English" else "🚀 डेमो मोड में चल रहा है")
 with col2:
-    st.metric("Last Run", metrics["last_run"])
+    st.metric("Last Run" if language == "English" else "अंतिम रन", metrics["last_run"])
 
 # --- KPIS ---
 kpi1, kpi2, kpi3, kpi4 = st.columns(4)
 with kpi1:
-    st.metric("Models Online", metrics["models_online"])
+    st.metric("Models Online" if language == "English" else "ऑनलाइन मॉडल", metrics["models_online"])
 with kpi2:
-    st.metric("Today's Regime", metrics["regime"])
+    st.metric("Today's Regime" if language == "English" else "आज का मौसम शासन", metrics["regime"])
 with kpi3:
-    st.metric("Active Alerts (Grid cells)", active_alerts)
+    st.metric("Active Alerts (Grid cells)" if language == "English" else "सक्रिय अलर्ट", active_alerts)
 with kpi4:
-    st.metric("Blend RMSE vs Best", metrics["rmse_change"], delta_color="inverse")
+    st.metric("Blend RMSE vs Best" if language == "English" else "ब्लेंड RMSE", metrics["rmse_change"], delta_color="inverse")
 
 st.divider()
 
 col_map, col_risk = st.columns([2, 1])
 
 with col_map:
-    st.subheader("National Alert Thumbnail")
+    st.subheader("National Alert Thumbnail" if language == "English" else "राष्ट्रीय अलर्ट थंबनेल")
     if active_alerts > 0:
         fig = px.imshow((sub["precip"] > precip_thr).values, color_continuous_scale="Reds")
-        fig.update_layout(title="Heavy Rain Alerts", coloraxis_showscale=False, plot_bgcolor="#0A192F", paper_bgcolor="rgba(0,0,0,0)")
+        fig.update_layout(title="Heavy Rain Alerts" if language == "English" else "भारी बारिश अलर्ट", coloraxis_showscale=False, plot_bgcolor="#0A192F", paper_bgcolor="rgba(0,0,0,0)")
         fig.update_xaxes(visible=False)
         fig.update_yaxes(visible=False)
         st.plotly_chart(fig, use_container_width=True)
     else:
-        st.info("No active hazards on map.")
+        st.info("No active hazards on map." if language == "English" else "मानचित्र पर कोई सक्रिय खतरा नहीं है।")
 
 with col_risk:
-    st.subheader("Top Regions at Risk")
+    st.subheader("Top Regions at Risk" if language == "English" else "खतरे वाले शीर्ष क्षेत्र")
     if risk_list:
         st.dataframe(risk_list, hide_index=True, use_container_width=True)
     else:
-        st.success("No extreme points exceeding thresholds.")
+        st.success("No extreme points exceeding thresholds." if language == "English" else "सीमा से अधिक कोई चरम बिंदु नहीं।")

@@ -44,6 +44,18 @@ def main():
                 write_store(stacked, "data/processed/stacked_models.zarr")
 
         models = xr.open_zarr("data/processed/stacked_models.zarr").load()
+
+        # STALE CACHE GUARD: Check if dimensions match between truth and models
+        if len(models.lat) != len(truth.lat) or len(models.lon) != len(truth.lon):
+            logger.warning("Stale cache detected: 'lat' or 'lon' sizes mismatch between truth and models! Rebuilding stacked models...")
+            import shutil
+            shutil.rmtree("data/processed/stacked_models.zarr")
+            
+            # Restack
+            stacked = stack_models(m_dict, expected)
+            write_store(stacked, "data/processed/stacked_models.zarr")
+            models = xr.open_zarr("data/processed/stacked_models.zarr").load()
+
     except Exception as e:
         logger.error(f"Failed to load stacked models or truth. Ensure Prompt 1 is run. {e}")
         return
@@ -146,7 +158,14 @@ def main():
             f.write("\n")
 
         # Create JSON for Dashboard (Amendment 5)
+        import datetime
         import json
+        import subprocess
+
+        try:
+            commit_hash = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+        except Exception:
+            commit_hash = "unknown"
 
         # Parse the ablation_df to get RMSE drop
         try:
@@ -162,6 +181,12 @@ def main():
 
         res_json = {
             "mode": "DEMO",
+            "metadata": {
+                "timestamp": datetime.datetime.now(datetime.UTC).isoformat(),
+                "git_commit": commit_hash,
+                "data_resolution": float(models.lat[1] - models.lat[0]) if len(models.lat) > 1 else 1.0,
+                "data_mode": "synthetic"
+            },
             "blend_rmse_change_pct": blend_rmse_change,
             "ablation": ablation_df.to_dict(orient="records"),
             "drift_flags": drift_flags,

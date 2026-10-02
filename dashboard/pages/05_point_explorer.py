@@ -174,7 +174,7 @@ with col_e:
 
 st.divider()
 
-language = st.radio("Language / भाषा", ["English", "Hindi"], horizontal=True)
+language = st.session_state.get("language", "English")
 
 if language == "Hindi":
     st.write("**हिंदी बुलेटिन:**")
@@ -186,13 +186,28 @@ else:
 def generate_pdf():
     pdf = FPDF()
     pdf.add_page()
-    pdf.set_font("Arial", size=12)
-    pdf.cell(200, 10, txt="Megha-Drishti Point Bulletin", ln=1, align="C")
-    pdf.cell(200, 10, txt=f"Location: {lat_input}N, {lon_input}E", ln=1, align="C")
-    pdf.cell(200, 10, txt=f"Variable: {var.upper()}", ln=1, align="C")
-    pdf.cell(
-        200, 10, txt="NOTE: English-only PDF export as core fonts do not render Devanagari.", ln=1
-    )
+    
+    import os
+    font_path = "dashboard/assets/fonts/NotoSansDevanagari-Regular.ttf"
+    if os.path.exists(font_path):
+        pdf.add_font("NotoSansDevanagari", "", font_path)
+        pdf.set_font("NotoSansDevanagari", size=12)
+        has_font = True
+    else:
+        pdf.set_font("Arial", size=12)
+        has_font = False
+
+    if language == "Hindi" and has_font:
+        pdf.cell(200, 10, txt="मेघा-दृष्टि बिंदु बुलेटिन", ln=1, align="C")
+        pdf.cell(200, 10, txt=f"स्थान: {lat_input}N, {lon_input}E", ln=1, align="C")
+        pdf.cell(200, 10, txt=f"चर: {var.upper()}", ln=1, align="C")
+    else:
+        pdf.cell(200, 10, txt="Megha-Drishti Point Bulletin", ln=1, align="C")
+        pdf.cell(200, 10, txt=f"Location: {lat_input}N, {lon_input}E", ln=1, align="C")
+        pdf.cell(200, 10, txt=f"Variable: {var.upper()}", ln=1, align="C")
+        
+    if language == "Hindi" and not has_font:
+        pdf.cell(200, 10, txt="NOTE: English-only PDF export as core fonts do not render Devanagari.", ln=1)
 
     # Output to base64
     return bytes(pdf.output())
