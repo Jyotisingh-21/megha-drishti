@@ -18,6 +18,7 @@ def main():
     parser.add_argument("--domain", type=str, default="india", help="Domain preset")
     parser.add_argument("--quick", action="store_true", help="Run quickly (leads 24, 48, 72)")
     parser.add_argument("--max-leads", type=int, default=None, help="Max leads to fetch")
+    parser.add_argument("--sources", type=str, default="", help="Comma-separated list of models to ingest (e.g. ecmwf_ifs,gfs)")
 
     args = parser.parse_args()
 
@@ -62,6 +63,7 @@ def main():
         skip_download=args.skip_download,
         quick=args.quick,
         max_leads=args.max_leads,
+        sources=args.sources,
     )
 
 
