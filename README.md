@@ -1,9 +1,9 @@
-# Megha-Drishti: Hybrid AI–NWP Forecast Blending System
+﻿# Megha-Drishti: Hybrid AIâ€“NWP Forecast Blending System
 
 [![CI Status](https://github.com/Jyotisingh-21/megha-drishti/actions/workflows/ci.yml/badge.svg)](https://github.com/Jyotisingh-21/megha-drishti/actions)
 [![Python 3.11](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/downloads/release/python-3110/)
 
-> **SIH 2026 · PS 26081 · MoES – NCMRWF**
+> **SIH 2026 Â· PS 26081 Â· MoES â€“ NCMRWF**
 > An adaptive, explainable framework that learns *where, when and for which weather regime* each forecast model is trustworthy, and blends physical NWP, ensembles and AI weather models into one calibrated forecast with extreme-event probabilities.
 
 ---
@@ -29,12 +29,12 @@ No single forecast system wins everywhere. Skill changes with region, season, le
 ## 3. Pipeline
 
 ```
- ┌───────────┐  ┌────────────┐  ┌──────────┐  ┌────────────┐  ┌──────────┐  ┌───────────────┐
- │ 1 Ingest  │→ │ 2 Bias-    │→ │ 3 Regime │→ │ 4 Adaptive │→ │ 5 Extreme│→ │ 6 Verify &    │
- │ harmonise │  │   correct  │  │   detect │  │   blend    │  │   module │  │   learn       │
- └───────────┘  └────────────┘  └──────────┘  └────────────┘  └──────────┘  └───────────────┘
-  xESMF, Zarr    quantile map,   k-means/SOM   EWA/BMA →       2-stage rain,  score vs obs,
-  0.25° grid     lapse-rate      + MJO/ENSO    regime-aware →   thresholds,    update weights,
+ â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+ â”‚ 1 Ingest  â”‚â†’ â”‚ 2 Bias-    â”‚â†’ â”‚ 3 Regime â”‚â†’ â”‚ 4 Adaptive â”‚â†’ â”‚ 5 Extremeâ”‚â†’ â”‚ 6 Verify &    â”‚
+ â”‚ harmonise â”‚  â”‚   correct  â”‚  â”‚   detect â”‚  â”‚   blend    â”‚  â”‚   module â”‚  â”‚   learn       â”‚
+ â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+  xESMF, Zarr    quantile map,   k-means/SOM   EWA/BMA â†’       2-stage rain,  score vs obs,
+  0.25Â° grid     lapse-rate      + MJO/ENSO    regime-aware â†’   thresholds,    update weights,
                                  /IOD/WD       gating net+SHAP  cyclone track  drift flags,
                                                + EMOS calib.    consensus      GRIB2/NetCDF/API
 ```
@@ -49,14 +49,14 @@ No single forecast system wins everywhere. Skill changes with region, season, le
 
 | Role | Source | Access | Notes |
 |---|---|---|---|
-| NWP + ensemble | ECMWF Open Data (IFS HRES, ENS) | `ecmwf-opendata` | Free, 0.25° |
+| NWP + ensemble | ECMWF Open Data (IFS HRES, ENS) | `ecmwf-opendata` | Free, 0.25Â° |
 | NWP | NOAA GFS | AWS `noaa-gfs-bdp-pds`, anonymous | Free |
 | AI model | ECMWF AIFS | ECMWF Open Data | No GPU needed |
 | AI model | GraphCast, Pangu | `ai-models` package | GPU recommended |
 | AI model | NeuralGCM | `neuralgcm` package | Optional |
 | Domestic NWP | NCUM-G / NEPS | Adapter reading GRIB2 | Restricted; open-data fallback uses the identical schema |
 | Truth | ERA5 | ARCO-ERA5 (Google Cloud, anonymous) or CDS API | Training and regimes |
-| Truth | IMD 0.25° rain, 1° temperature | `imdlib` | Rainfall and temperature verification |
+| Truth | IMD 0.25Â° rain, 1Â° temperature | `imdlib` | Rainfall and temperature verification |
 | Truth | GPM-IMERG | NASA Earthdata login | Rainfall |
 | Truth | IMDAA | NCMRWF / NCAR RDA | Optional |
 
@@ -74,30 +74,30 @@ No single forecast system wins everywhere. Skill changes with region, season, le
 
 ```
 .
-├── README.md
-├── AGENTS.md                  # rules for the AI coding agent
-├── PROMPTS.md                 # step-by-step build prompts
-├── pyproject.toml
-├── configs/
-│   ├── default.yaml           # domain, models, variables, lead times
-│   └── thresholds.yaml        # IMD heavy-rain / heatwave / wind thresholds
-├── src/nwpblend/
-│   ├── ingest/                # ecmwf.py, gfs.py, aifs.py, ncmrwf_adapter.py, truth.py, synthetic.py
-│   ├── harmonise/             # regrid.py, store.py
-│   ├── biascorrect/           # quantile_map.py, lapse_rate.py
-│   ├── regimes/               # cluster.py, indices.py
-│   ├── blend/                 # baselines.py, gating.py, emos.py, explain.py
-│   ├── extremes/              # rain2stage.py, thresholds.py, cyclone.py
-│   ├── verify/                # metrics.py, ablation.py, replay.py
-│   ├── export/                # grib2.py, netcdf.py
-│   ├── api/                   # main.py
-│   └── pipeline.py            # daily orchestration
-├── dashboard/app.py
-├── scripts/                   # run_daily.py, download_demo_data.py
-├── tests/
-├── docker/Dockerfile
-├── docker-compose.yml
-└── .github/workflows/ci.yml
+â”œâ”€â”€ README.md
+â”œâ”€â”€ AGENTS.md                  # rules for the AI coding agent
+â”œâ”€â”€ PROMPTS.md                 # step-by-step build prompts
+â”œâ”€â”€ pyproject.toml
+â”œâ”€â”€ configs/
+â”‚   â”œâ”€â”€ default.yaml           # domain, models, variables, lead times
+â”‚   â””â”€â”€ thresholds.yaml        # IMD heavy-rain / heatwave / wind thresholds
+â”œâ”€â”€ src/nwpblend/
+â”‚   â”œâ”€â”€ ingest/                # ecmwf.py, gfs.py, aifs.py, ncmrwf_adapter.py, truth.py, synthetic.py
+â”‚   â”œâ”€â”€ harmonise/             # regrid.py, store.py
+â”‚   â”œâ”€â”€ biascorrect/           # quantile_map.py, lapse_rate.py
+â”‚   â”œâ”€â”€ regimes/               # cluster.py, indices.py
+â”‚   â”œâ”€â”€ blend/                 # baselines.py, gating.py, emos.py, explain.py
+â”‚   â”œâ”€â”€ extremes/              # rain2stage.py, thresholds.py, cyclone.py
+â”‚   â”œâ”€â”€ verify/                # metrics.py, ablation.py, replay.py
+â”‚   â”œâ”€â”€ export/                # grib2.py, netcdf.py
+â”‚   â”œâ”€â”€ api/                   # main.py
+â”‚   â””â”€â”€ pipeline.py            # daily orchestration
+â”œâ”€â”€ dashboard/app.py
+â”œâ”€â”€ scripts/                   # run_daily.py, download_demo_data.py
+â”œâ”€â”€ tests/
+â”œâ”€â”€ docker/Dockerfile
+â”œâ”€â”€ docker-compose.yml
+â””â”€â”€ .github/workflows/ci.yml
 ```
 
 ## 7. Quick start
@@ -143,15 +143,15 @@ See the UI in action (generated automatically):
 |---|---|---|
 | CDS API | ERA5 (if not using ARCO-ERA5) | `~/.cdsapirc` |
 | NASA Earthdata | IMERG | `~/.netrc` |
-| None | ECMWF Open Data, GFS, ARCO-ERA5, IMD via `imdlib` | – |
+| None | ECMWF Open Data, GFS, ARCO-ERA5, IMD via `imdlib` | â€“ |
 
 ## 8. Validation plan
 
-- **Periods:** monsoon JJAS 2023–24 and summer 2024.
+- **Periods:** monsoon JJAS 2023â€“24 and summer 2024.
 - **Cross-validation:** year-wise / leave-one-season-out, so nothing leaks from the future.
 - **Baselines:** each individual model, equal-weight mean, EWA, BMA.
 - **Metrics:** RMSE, ACC, CRPS, Brier score, FSS (handles the rainfall double penalty), POD, FAR, CSI.
-- **Ablation:** raw → + bias correction → + regimes → + gating → + EMOS, showing what each part adds.
+- **Ablation:** raw â†’ + bias correction â†’ + regimes â†’ + gating â†’ + EMOS, showing what each part adds.
 - **Event replay:** Wayanad landslides 2024, Cyclone Biparjoy 2023, Cyclone Remal 2024, Delhi heatwave 2024.
 
 > **Targets vs results.** The design targets (10-15% lower rainfall RMSE than the best single model, 15-25% higher CSI for heavy rain) are design objectives. **The metrics available in this repository (docs/results.md) are generated using verified real-world meteorological data from ECMWF and GFS, evaluated against IMD and ARCO-ERA5.** Note that due to limited training history and S3 rate limits during ingestion, the current blending weights may not significantly outperform the best single model. See the results document for exact figures.
@@ -169,10 +169,10 @@ For Linux, add the following to your crontab (crontab -e):
 
 | Phase | Scope | Status |
 |---|---|---|
-| 1 · Data + baseline | Ingest, regrid, bias-correct; equal-weight, EWA and BMA baselines | ✅ |
-| 2 · Adaptive + probabilistic | Regimes, gating network, EMOS calibration | ✅ |
-| 3 · Extremes + verification | Threshold probabilities, event replay, ablation | ✅ |
-| 4 · Deploy | Dashboard, FastAPI, GRIB2 export, Docker, scheduler | ✅ |
+| 1 Â· Data + baseline | Ingest, regrid, bias-correct; equal-weight, EWA and BMA baselines | âœ… |
+| 2 Â· Adaptive + probabilistic | Regimes, gating network, EMOS calibration | âœ… |
+| 3 Â· Extremes + verification | Threshold probabilities, event replay, ablation | âœ… |
+| 4 Â· Deploy | Dashboard, FastAPI, GRIB2 export, Docker, scheduler | âœ… |
 
 ## 10. Risks and mitigations
 
@@ -186,17 +186,17 @@ For Linux, add the following to your crontab (crontab -e):
 
 ## 11. References
 
-1. Raftery et al. (2005). Using Bayesian model averaging to calibrate forecast ensembles. *Mon. Wea. Rev.* 133, 1155–1174.
-2. Gneiting et al. (2005). Calibrated probabilistic forecasting using EMOS and minimum CRPS estimation. *Mon. Wea. Rev.* 133, 1098–1118.
-3. Lam et al. (2023). GraphCast. *Science* 382, 1416–1421.
-4. Bi et al. (2023). Pangu-Weather. *Nature* 619, 533–538.
+1. Raftery et al. (2005). Using Bayesian model averaging to calibrate forecast ensembles. *Mon. Wea. Rev.* 133, 1155â€“1174.
+2. Gneiting et al. (2005). Calibrated probabilistic forecasting using EMOS and minimum CRPS estimation. *Mon. Wea. Rev.* 133, 1098â€“1118.
+3. Lam et al. (2023). GraphCast. *Science* 382, 1416â€“1421.
+4. Bi et al. (2023). Pangu-Weather. *Nature* 619, 533â€“538.
 5. Lang et al. (2024). AIFS. arXiv:2406.01465.
-6. Kochkov et al. (2024). Neural general circulation models. *Nature* 632, 1060–1066.
-7. Hersbach et al. (2020). The ERA5 global reanalysis. *QJRMS* 146, 1999–2049.
-8. Rani et al. (2021). IMDAA reanalysis. *J. Climate* 34, 5109–5133.
-9. Pai et al. (2014). 0.25° daily gridded rainfall over India. *MAUSAM* 65, 1–18.
-10. Roberts and Lean (2008). Scale-selective verification of rainfall accumulations. *Mon. Wea. Rev.* 136, 78–97.
-11. Jacobs et al. (1991). Adaptive mixtures of local experts. *Neural Computation* 3, 79–87.
+6. Kochkov et al. (2024). Neural general circulation models. *Nature* 632, 1060â€“1066.
+7. Hersbach et al. (2020). The ERA5 global reanalysis. *QJRMS* 146, 1999â€“2049.
+8. Rani et al. (2021). IMDAA reanalysis. *J. Climate* 34, 5109â€“5133.
+9. Pai et al. (2014). 0.25Â° daily gridded rainfall over India. *MAUSAM* 65, 1â€“18.
+10. Roberts and Lean (2008). Scale-selective verification of rainfall accumulations. *Mon. Wea. Rev.* 136, 78â€“97.
+11. Jacobs et al. (1991). Adaptive mixtures of local experts. *Neural Computation* 3, 79â€“87.
 12. Lundberg and Lee (2017). A unified approach to interpreting model predictions. *NeurIPS* 30.
 
 ## 12. License and acknowledgements
@@ -211,7 +211,10 @@ MIT License (see `LICENSE` file). Built for Smart India Hackathon 2026, PS 26081
 - **DataMeet**: Boundary data sourced from the DataMeet community (CC-BY-2.5-IN).
 
 See [docs/DATA_LICENCES.md](docs/DATA_LICENCES.md) for full licensing details.
- 
- # #   K n o w n   L i m i t a t i o n s  
- -   * * E C M W F   0 . 1 �   L a y o u t * * :   P r e p a r e d   b u t   n o t   v e r i f i e d   a g a i n s t   l i v e   f i l e s .   ( T O D O :   R e - t e s t   a r e a - a v e r a g i n g   c o n s e r v a t i v e   r e g r i d d i n g   w h e n   E C M W F   f u l l y   s w i t c h e s   t o   0 . 1 �   O p e n   D a t a ) .  
+
+ 
+ # #   K n o w n   L i m i t a t i o n s 
+ 
+ -   * * E C M W F   0 . 1 °   L a y o u t * * :   P r e p a r e d   b u t   n o t   v e r i f i e d   a g a i n s t   l i v e   f i l e s .   ( T O D O :   R e - t e s t   a r e a - a v e r a g i n g   c o n s e r v a t i v e   r e g r i d d i n g   w h e n   E C M W F   f u l l y   s w i t c h e s   t o   0 . 1 °   O p e n   D a t a ) . 
+ 
  

@@ -165,7 +165,7 @@ def _process_files(target_files, domain, init_dt):
     for target_file in target_files:
         if not os.path.exists(target_file) or os.path.getsize(target_file) == 0:
             continue
-            
+
         try:
             groups = [
                 {"shortName": "t2m"},
@@ -218,8 +218,9 @@ def _process_files(target_files, domain, init_dt):
                 lat_slice = slice(domain["lat_min"] - 1, domain["lat_max"] + 1)
 
             ds_subset = ds.sel(latitude=lat_slice, longitude=lon_slice)
-            
+
             from nwpblend.ingest.regrid import regrid_dataset
+
             ds_subset = regrid_dataset(ds_subset, domain)
 
             datasets.append(ds_subset)

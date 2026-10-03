@@ -279,6 +279,7 @@ def _process_file(target_file, domain, init_dt):
 
         # --- Regrid to pipeline grid ----------------------------------------
         from nwpblend.ingest.regrid import regrid_dataset
+
         ds = regrid_dataset(ds, domain)
 
         # --- Rename to canonical schema -------------------------------------

@@ -43,8 +43,6 @@ with st.sidebar:
         ["English", "Hindi"],
         index=0 if st.session_state["language"] == "English" else 1,
     )
-    if st.session_state["language"] == "Hindi":
-        st.warning("Note: Hindi translations need native-speaker review before operational use.")
 
     with st.popover("About this forecast"):
         st.markdown("""

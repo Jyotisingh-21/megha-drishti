@@ -43,21 +43,36 @@ def replay_events(models: xr.Dataset, truth: xr.Dataset, is_demo: bool = True) -
         report.append(
             "> **[DEMO DATA]** This replay is running on synthetic data. Real historical dates are mapped to available demo dates.\n"
         )
+    else:
+        report.append(
+            "> Note: AWS/Google ECMWF open data mirrors only retain the last 5-10 days of forecasts. "
+            "To fully replay 2023/2024 events in REAL mode, GFS archive data from AWS s3://noaa-gfs-bdp-pds/ "
+            "and historical ECMWF MARS requests are required. "
+            "Events are marked **[REAL]** only if exact forecast and observation dates match.\n"
+        )
 
     times = pd.to_datetime(truth.time.values)
 
     for name, config in events.items():
-        report.append(f"#### {name} ({config['start']} to {config['end']})")
         if len(times) == 0:
-            report.append("*No data available.*\n")
+            report.append(
+                f"#### {name} ({config['start']} to {config['end']})\n*No data available.*\n"
+            )
             continue
 
-        # Map to demo dates
+        # Map to demo dates or use exact
         if is_demo:
             idx = np.random.randint(0, len(times) - 3)
             event_times = times[idx : idx + 3]
+            tag = "[DEMO]"
         else:
             event_times = times[(times >= config["start"]) & (times <= config["end"])]
+            if len(event_times) > 0:
+                tag = "**[REAL]**"
+            else:
+                tag = "[NO DATA]"
+
+        report.append(f"#### {name} {tag} ({config['start']} to {config['end']})")
 
         if len(event_times) == 0:
             report.append("*Dates not present in dataset.*\n")
@@ -71,11 +86,9 @@ def replay_events(models: xr.Dataset, truth: xr.Dataset, is_demo: bool = True) -
         report.append(f"- **Max Observed {config['var']}**: {max_obs:.1f}")
 
         if max_obs > config["thresh"]:
-            report.append(
-                "- **Hit/Miss**: **HIT** (Extreme threshold exceeded in observations and captured by model distribution)\n"
-            )
+            report.append("- **Hit/Miss**: **HIT** (Extreme threshold exceeded)\n")
         else:
-            report.append("- **Hit/Miss**: **MISS** (Event not captured synthetically)\n")
+            report.append("- **Hit/Miss**: **MISS** (Threshold not reached)\n")
 
     return "\n".join(report)
 

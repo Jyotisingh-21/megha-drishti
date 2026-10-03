@@ -7,21 +7,27 @@ Evaluation of single models vs baseline blenders.
 | Single: ecmwf_ifs | t2m | 0.018 | 0.015 | 0.000 |
 | Single: gfs | t2m | 0.018 | 0.015 | 0.000 |
 | Single: aifs | t2m | 0.023 | 0.019 | 0.001 |
-| Single: ncum_g | t2m | 0.018 | 0.014 | 0.000 |
-| Single: graphcast | t2m | 0.024 | 0.019 | 0.002 |
-| Single: pangu | t2m | 0.023 | 0.019 | -0.001 |
-| Blend: Equal | t2m | 0.009 | 0.007 | 0.000 |
-| Blend: EWA | t2m | 0.009 | 0.007 | 0.000 |
-| Blend: BMA | t2m | 0.009 | 0.007 | 0.000 |
+| Blend: Equal | t2m | 0.012 | 0.009 | 0.000 |
+| Blend: EWA | t2m | 0.012 | 0.009 | 0.000 |
+| Blend: BMA | t2m | 0.012 | 0.009 | 0.000 |
 | Single: ecmwf_ifs | precip | 0.154 | 0.124 | -0.001 |
 | Single: gfs | precip | 0.154 | 0.124 | -0.004 |
 | Single: aifs | precip | 4.992 | 4.453 | -4.453 |
-| Single: ncum_g | precip | 0.155 | 0.126 | -0.002 |
-| Single: graphcast | precip | 4.990 | 4.453 | -4.453 |
-| Single: pangu | precip | 4.990 | 4.452 | -4.452 |
-| Blend: Equal | precip | 2.496 | 2.227 | -2.227 |
-| Blend: EWA | precip | 1.945 | 1.729 | -1.729 |
-| Blend: BMA | precip | 0.092 | 0.074 | -0.007 |
+| Blend: Equal | precip | 1.667 | 1.486 | -1.486 |
+| Blend: EWA | precip | 1.214 | 1.076 | -1.076 |
+| Blend: BMA | precip | 0.111 | 0.089 | -0.004 |
+| Single: ecmwf_ifs | wind10m | 0.030 | 0.024 | 0.001 |
+| Single: gfs | wind10m | 0.030 | 0.024 | -0.002 |
+| Single: aifs | wind10m | 0.030 | 0.024 | -0.002 |
+| Blend: Equal | wind10m | 0.017 | 0.014 | -0.001 |
+| Blend: EWA | wind10m | 0.017 | 0.014 | -0.001 |
+| Blend: BMA | wind10m | 0.018 | 0.014 | -0.001 |
+| Single: ecmwf_ifs | gust10m | 0.049 | 0.039 | 0.000 |
+| Single: gfs | gust10m | 0.050 | 0.040 | -0.000 |
+| Single: aifs | gust10m | 0.050 | 0.040 | 0.003 |
+| Blend: Equal | gust10m | 0.028 | 0.023 | 0.001 |
+| Blend: EWA | gust10m | 0.028 | 0.023 | 0.001 |
+| Blend: BMA | gust10m | 0.029 | 0.023 | 0.001 |
 
 # Verification and Ablation
 

@@ -8,12 +8,14 @@ import streamlit as st
 def render_header(is_demo: bool):
     # Read status from latest run report if available
     status = "SUCCESS"
-    report_file = f"../data/logs/run_report_{datetime.now(UTC).strftime('%Y-%m-%d')}.json"
+    run_date = None
+    report_file = "../data/logs/run_report_latest.json"
     if os.path.exists(report_file):
         try:
             with open(report_file, "r") as f:
                 r = json.load(f)
                 status = r.get("status", "SUCCESS")
+                run_date = r.get("date")
         except Exception:
             pass
 
@@ -21,8 +23,30 @@ def render_header(is_demo: bool):
     mode_badge = (
         "<span style='background: #F59E0B; color: #000; padding: 2px 6px; border-radius: 4px; font-size: 0.8rem; font-weight: bold;'>DEMO</span>"
         if is_demo
-        else "<span style='background: #10B981; color: #000; padding: 2px 6px; border-radius: 4px; font-size: 0.8rem; font-weight: bold;'>LIVE</span>"
+        else "<span style='background: #10B981; color: #000; padding: 2px 6px; border-radius: 4px; font-size: 0.8rem; font-weight: bold;'>REAL</span>"
     )
+
+    stale_badge = ""
+    if run_date:
+        try:
+            rdt = datetime.strptime(run_date, "%Y-%m-%d").replace(tzinfo=UTC)
+            if (datetime.now(UTC) - rdt).days > 2:
+                stale_badge = "<span style='background: #EF4444; color: #fff; padding: 2px 6px; border-radius: 4px; font-size: 0.8rem; font-weight: bold;'>STALE</span>"
+        except Exception:
+            pass
+
+    col_mode, col_lang = st.columns([4, 1])
+
+    with col_lang:
+        st.session_state["language"] = st.selectbox(
+            "Language / भाषा",
+            ["English", "Hindi"],
+            index=0 if st.session_state.get("language", "English") == "English" else 1,
+            label_visibility="collapsed",
+            key="header_lang_toggle",
+        )
+        if st.session_state["language"] == "Hindi":
+            st.warning("Note: Hindi translations need native-speaker review.", icon="⚠️")
 
     st.markdown(
         f"""
@@ -35,6 +59,7 @@ def render_header(is_demo: bool):
                 Megha-Drishti
             </div>
             <div style="display: flex; align-items: center; gap: 15px;">
+                {stale_badge}
                 {mode_badge}
                 <div style="display: flex; align-items: center; gap: 6px; font-size: 0.9rem; color: #94A3B8;">
                     Pipeline
