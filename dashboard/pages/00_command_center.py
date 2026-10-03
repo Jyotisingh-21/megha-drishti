@@ -14,6 +14,11 @@ st.set_page_config(layout="wide", page_title="Megha-Drishti | Command Center")
 
 ds, is_demo = load_data()
 
+if ds is None:
+    st.info("No real forecast data yet. Run the pipeline with `python scripts/run_daily.py --quick` to generate data.")
+    st.stop()
+
+
 
 # --- DATA LOADING ---
 def get_metrics(ds, is_demo):

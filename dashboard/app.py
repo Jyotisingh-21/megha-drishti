@@ -12,9 +12,6 @@ apply_global_styles()
 
 ds, is_demo = load_data()
 
-st.sidebar.warning("RUNNING IN DEMO MODE") if is_demo else st.sidebar.success(
-    "RUNNING IN REAL MODE"
-)
 
 with st.sidebar:
     st.markdown("---")

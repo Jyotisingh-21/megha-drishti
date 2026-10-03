@@ -35,7 +35,7 @@ def render_header(is_demo: bool):
         except Exception:
             pass
 
-    col_mode, col_lang = st.columns([4, 1])
+    _, col_lang = st.columns([4, 1])
 
     with col_lang:
         st.session_state["language"] = st.selectbox(

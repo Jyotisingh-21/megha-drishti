@@ -29,9 +29,11 @@ else:
 
 ds, is_demo = load_data()
 
-st.sidebar.warning("RUNNING IN DEMO MODE") if is_demo else st.sidebar.success(
-    "RUNNING IN REAL MODE"
-)
+if ds is None:
+    st.info("No real forecast data yet. Run the pipeline with `python scripts/run_daily.py --quick` to generate data.")
+    st.stop()
+
+
 if var not in ds.data_vars:
     var = next(iter(ds.data_vars.keys()))
 
