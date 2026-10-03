@@ -12,9 +12,49 @@ import xarray as xr
 logger = logging.getLogger(__name__)
 
 
+def do_fetch(idx_p, vars_list, s3_p, out_file):
+    import time
+
+    import s3fs
+
+    fs = s3fs.S3FileSystem(anon=True, config_kwargs={"read_timeout": 15, "connect_timeout": 5})
+
+    t_idx_start = time.time()
+    idx_data = fs.cat(idx_p).decode("utf-8").splitlines()
+    t_idx_end = time.time()
+
+    ranges = []
+    for i, line in enumerate(idx_data):
+        for gv in vars_list:
+            if gv in line:
+                start = int(line.split(":")[1])
+                end = None
+                if i + 1 < len(idx_data):
+                    end = int(idx_data[i + 1].split(":")[1]) - 1
+                ranges.append((start, end))
+
+    if not ranges:
+        raise ValueError("No valid variables found in index")
+
+    # Fetch ranges
+    bytes_down = 0
+    with fs.open(s3_p, "rb", fill_cache=False) as f_in, open(out_file, "wb") as f_out:
+        for start, end in ranges:
+            f_in.seek(start)
+            length = end - start + 1 if end else 2000000
+            data = f_in.read(length)
+            f_out.write(data)
+            bytes_down += len(data)
+
+    t_total = time.time() - t_idx_start
+    speed = (bytes_down / 1024 / 1024) / max(t_total, 0.1)
+    logger.info(
+        f"  -> Fetched {len(ranges)} ranges, {bytes_down / 1024:.1f} KB in {t_total:.1f}s ({speed:.2f} MB/s). IDX time: {t_idx_end - t_idx_start:.2f}s"
+    )
+
+
 def probe_and_fetch(target_date, domain, leads, variables):
-    fs = s3fs.S3FileSystem(anon=True, config_kwargs={
-                           "read_timeout": 15, "connect_timeout": 5})
+    fs = s3fs.S3FileSystem(anon=True, config_kwargs={"read_timeout": 15, "connect_timeout": 5})
 
     if target_date == "latest":
         now = datetime.now(UTC)
@@ -22,8 +62,7 @@ def probe_and_fetch(target_date, domain, leads, variables):
         for i in range(8):
             t = now - timedelta(hours=i * 6)
             h = (t.hour // 6) * 6
-            candidates.append(
-                t.replace(hour=h, minute=0, second=0, microsecond=0))
+            candidates.append(t.replace(hour=h, minute=0, second=0, microsecond=0))
     else:
         dt = pd.to_datetime(target_date)
         candidates = [dt.replace(hour=0, tzinfo=UTC)]
@@ -76,40 +115,6 @@ def probe_and_fetch(target_date, domain, leads, variables):
     t_start_source = time.time()
     target_files = []
 
-    def do_fetch(idx_p, vars_list, s3_p, out_file):
-        t_idx_start = time.time()
-        idx_data = fs.cat(idx_p).decode("utf-8").splitlines()
-        t_idx_end = time.time()
-
-        ranges = []
-        for i, line in enumerate(idx_data):
-            for gv in vars_list:
-                if gv in line:
-                    start = int(line.split(":")[1])
-                    end = None
-                    if i + 1 < len(idx_data):
-                        end = int(idx_data[i + 1].split(":")[1]) - 1
-                    ranges.append((start, end))
-
-        if not ranges:
-            raise ValueError("No valid variables found in index")
-
-        # Fetch ranges
-        bytes_down = 0
-        with fs.open(s3_p, "rb", fill_cache=False) as f_in, open(out_file, "wb") as f_out:
-            for start, end in ranges:
-                f_in.seek(start)
-                length = end - start + 1 if end else 2000000
-                data = f_in.read(length)
-                f_out.write(data)
-                bytes_down += len(data)
-
-        t_total = time.time() - t_idx_start
-        speed = (bytes_down / 1024 / 1024) / max(t_total, 0.1)
-        logger.info(
-            f"  -> Fetched {len(ranges)} ranges, {bytes_down / 1024:.1f} KB in {t_total:.1f}s ({speed:.2f} MB/s). IDX time: {t_idx_end - t_idx_start:.2f}s"
-        )
-
     for lead in leads:
         if time.time() - t_start_source > time_budget:
             logger.warning(f"Time budget of {time_budget}s exhausted for GFS.")
@@ -124,18 +129,17 @@ def probe_and_fetch(target_date, domain, leads, variables):
             idx_path = s3_path + ".idx"
 
             if fs.exists(idx_path):
-                logger.info(
-                    f"Downloading GFS run {chosen_run} lead {lead} via index...")
+                logger.info(f"Downloading GFS run {chosen_run} lead {lead} via index...")
                 try:
-                    executor = concurrent.futures.ThreadPoolExecutor(
-                        max_workers=1)
-                    future = executor.submit(
-                        do_fetch, idx_path, gfs_vars, s3_path, target_file)
+                    executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+                    future = executor.submit(do_fetch, idx_path, gfs_vars, s3_path, target_file)
                     future.result(timeout=download_timeout)
                     time.sleep(1)
                 except Exception as e:
                     if isinstance(e, concurrent.futures.TimeoutError):
-                        logger.error(f"GFS download timed out after {download_timeout}s for lead {lead}")
+                        logger.error(
+                            f"GFS download timed out after {download_timeout}s for lead {lead}"
+                        )
                     else:
                         logger.error(f"GFS download failed: {e}")
                     break
@@ -190,8 +194,7 @@ def _process_files(target_files, domain, init_dt):
                     pass
 
             if not parts:
-                logger.warning(
-                    f"No recognised variables found in {target_file}")
+                logger.warning(f"No recognised variables found in {target_file}")
                 continue
 
             aligned = {}
@@ -244,12 +247,10 @@ def _process_files(target_files, domain, init_dt):
             out_vars["precip"].attrs["units"] = "mm"
 
         if "u10" in combined and "v10" in combined:
-            out_vars["wind10m"] = np.sqrt(
-                combined["u10"] ** 2 + combined["v10"] ** 2)
+            out_vars["wind10m"] = np.sqrt(combined["u10"] ** 2 + combined["v10"] ** 2)
             out_vars["wind10m"].attrs["units"] = "m s-1"
         elif "10u" in combined and "10v" in combined:
-            out_vars["wind10m"] = np.sqrt(
-                combined["10u"] ** 2 + combined["10v"] ** 2)
+            out_vars["wind10m"] = np.sqrt(combined["10u"] ** 2 + combined["10v"] ** 2)
             out_vars["wind10m"].attrs["units"] = "m s-1"
 
         if "gust" in combined:
