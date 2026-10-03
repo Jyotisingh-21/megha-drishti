@@ -13,7 +13,8 @@ logger = logging.getLogger(__name__)
 
 
 def probe_and_fetch(target_date, domain, leads, variables):
-    fs = s3fs.S3FileSystem(anon=True, config_kwargs={"read_timeout": 15, "connect_timeout": 5})
+    fs = s3fs.S3FileSystem(anon=True, config_kwargs={
+                           "read_timeout": 15, "connect_timeout": 5})
 
     if target_date == "latest":
         now = datetime.now(UTC)
@@ -21,141 +22,133 @@ def probe_and_fetch(target_date, domain, leads, variables):
         for i in range(8):
             t = now - timedelta(hours=i * 6)
             h = (t.hour // 6) * 6
-            candidates.append(t.replace(hour=h, minute=0, second=0, microsecond=0))
+            candidates.append(
+                t.replace(hour=h, minute=0, second=0, microsecond=0))
     else:
         dt = pd.to_datetime(target_date)
         candidates = [dt.replace(hour=0, tzinfo=UTC)]
 
-    success_ds = None
-    chosen_run = None
+    try:
+        import yaml
 
+        with open("configs/default.yaml", "r") as f:
+            config = yaml.safe_load(f)
+    except Exception:
+        config = {}
+
+    download_timeout = config.get("download_timeout", 120)
+    time_budget = config.get("source_time_budget", 1800)
+
+    # GFS variable map
+    gfs_vars = []
+    if "t2m" in variables:
+        gfs_vars.append(":TMP:2 m above ground:")
+    if "precip" in variables:
+        gfs_vars.append(":PRATE:surface:")
+    if "wind10m" in variables:
+        gfs_vars.append(":UGRD:10 m above ground:")
+        gfs_vars.append(":VGRD:10 m above ground:")
+    if "gust10m" in variables:
+        gfs_vars.append(":GUST:surface:")
+
+    # 1. Find the newest run whose first requested lead .idx exists
+    chosen_run = None
+    first_lead = f"{leads[0]:03d}" if leads else "000"
     for cand in candidates:
         date_str = cand.strftime("%Y%m%d")
         time_str = f"{cand.hour:02d}"
+        s3_path = f"noaa-gfs-bdp-pds/gfs.{date_str}/{time_str}/atmos/gfs.t{time_str}z.pgrb2.0p25.f{first_lead}.idx"
+        if fs.exists(s3_path):
+            chosen_run = cand
+            break
 
-        archive_dir = f"data/archive/gfs/{cand.strftime('%Y%m%d_%H%M')}"
-        os.makedirs(archive_dir, exist_ok=True)
+    if not chosen_run:
+        logger.error("No valid GFS runs found in probing window.")
+        return None, None
 
-        missing_leads = False
-        target_files = []
+    date_str = chosen_run.strftime("%Y%m%d")
+    time_str = f"{chosen_run.hour:02d}"
+    archive_dir = f"data/archive/gfs/{chosen_run.strftime('%Y%m%d_%H%M')}"
+    os.makedirs(archive_dir, exist_ok=True)
 
-        # GFS variable map (exact cfgrib / index strings)
-        gfs_vars = []
-        if "t2m" in variables:
-            gfs_vars.append(":TMP:2 m above ground:")
-        if "precip" in variables:
-            gfs_vars.append(":PRATE:surface:")
-        if "wind10m" in variables:
-            gfs_vars.append(":UGRD:10 m above ground:")
-            gfs_vars.append(":VGRD:10 m above ground:")
-        if "gust10m" in variables:
-            gfs_vars.append(":GUST:surface:")
+    import time
 
-        try:
-            import yaml
+    t_start_source = time.time()
+    target_files = []
 
-            with open("configs/default.yaml", "r") as f:
-                config = yaml.safe_load(f)
-        except Exception:
-            config = {}
-        time_budget = config.get("source_time_budget", 1800)
-        import time
+    def do_fetch(idx_p, vars_list, s3_p, out_file):
+        t_idx_start = time.time()
+        idx_data = fs.cat(idx_p).decode("utf-8").splitlines()
+        t_idx_end = time.time()
 
-        t_start_source = time.time()
+        ranges = []
+        for i, line in enumerate(idx_data):
+            for gv in vars_list:
+                if gv in line:
+                    start = int(line.split(":")[1])
+                    end = None
+                    if i + 1 < len(idx_data):
+                        end = int(idx_data[i + 1].split(":")[1]) - 1
+                    ranges.append((start, end))
 
-        for lead in leads:
-            if time.time() - t_start_source > time_budget:
-                logger.warning(f"Time budget of {time_budget}s exhausted for GFS.")
-                missing_leads = True
-                break
+        if not ranges:
+            raise ValueError("No valid variables found in index")
 
-            lead_str = f"{lead:03d}"
-            target_file = os.path.join(archive_dir, f"raw_f{lead_str}.grib")
-            target_files.append(target_file)
+        # Fetch ranges
+        bytes_down = 0
+        with fs.open(s3_p, "rb", fill_cache=False) as f_in, open(out_file, "wb") as f_out:
+            for start, end in ranges:
+                f_in.seek(start)
+                length = end - start + 1 if end else 2000000
+                data = f_in.read(length)
+                f_out.write(data)
+                bytes_down += len(data)
 
-            if not os.path.exists(target_file) or os.path.getsize(target_file) == 0:
-                s3_path = f"noaa-gfs-bdp-pds/gfs.{date_str}/{time_str}/atmos/gfs.t{time_str}z.pgrb2.0p25.f{lead_str}"
-                idx_path = s3_path + ".idx"
+        t_total = time.time() - t_idx_start
+        speed = (bytes_down / 1024 / 1024) / max(t_total, 0.1)
+        logger.info(
+            f"  -> Fetched {len(ranges)} ranges, {bytes_down / 1024:.1f} KB in {t_total:.1f}s ({speed:.2f} MB/s). IDX time: {t_idx_end - t_idx_start:.2f}s"
+        )
 
-                if fs.exists(idx_path):
-                    logger.info(f"Downloading GFS run {cand} lead {lead} via index...")
-                    try:
+    for lead in leads:
+        if time.time() - t_start_source > time_budget:
+            logger.warning(f"Time budget of {time_budget}s exhausted for GFS.")
+            break
 
-                        def do_fetch(idx_p, vars_list, s3_p, out_file):
-                            idx_data = fs.cat(idx_p).decode("utf-8").splitlines()
-                            ranges = []
-                            for i, line in enumerate(idx_data):
-                                for gv in vars_list:
-                                    if gv in line:
-                                        start = int(line.split(":")[1])
-                                        end = None
-                                        if i + 1 < len(idx_data):
-                                            end = int(idx_data[i + 1].split(":")[1]) - 1
-                                        ranges.append((start, end))
+        lead_str = f"{lead:03d}"
+        target_file = os.path.join(archive_dir, f"raw_f{lead_str}.grib")
+        target_files.append(target_file)
 
-                            if not ranges:
-                                raise ValueError("No valid variables found in index")
+        if not os.path.exists(target_file) or os.path.getsize(target_file) == 0:
+            s3_path = f"noaa-gfs-bdp-pds/gfs.{date_str}/{time_str}/atmos/gfs.t{time_str}z.pgrb2.0p25.f{lead_str}"
+            idx_path = s3_path + ".idx"
 
-                            with (
-                                fs.open(s3_p, "rb", fill_cache=False) as f_in,
-                                open(out_file, "wb") as f_out,
-                            ):
-                                for start, end in ranges:
-                                    f_in.seek(start)
-                                    length = end - start + 1 if end else 2000000
-                                    f_out.write(f_in.read(length))
-
-                        import yaml
-
-                        try:
-                            import yaml
-
-                            with open("configs/default.yaml", "r") as f:
-                                config = yaml.safe_load(f)
-                        except Exception:
-                            config = {}
-                        download_timeout = config.get("download_timeout", 30)
-
-                        executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
-                        future = executor.submit(do_fetch, idx_path, gfs_vars, s3_path, target_file)
-                        future.result(timeout=download_timeout)
-
-                        import time
-
-                        time.sleep(2)
-                    except Exception as e:
-                        if isinstance(e, concurrent.futures.TimeoutError):
-                            logger.error(
-                                f"GFS download timed out after {download_timeout}s for lead {lead}"
-                            )
-                        else:
-                            logger.error(f"GFS download failed: {e}")
-                        missing_leads = True
-                        break
-                else:
-                    logger.info(f"GFS run {cand} lead {lead} missing on AWS.")
-                    missing_leads = True
+            if fs.exists(idx_path):
+                logger.info(
+                    f"Downloading GFS run {chosen_run} lead {lead} via index...")
+                try:
+                    executor = concurrent.futures.ThreadPoolExecutor(
+                        max_workers=1)
+                    future = executor.submit(
+                        do_fetch, idx_path, gfs_vars, s3_path, target_file)
+                    future.result(timeout=download_timeout)
+                    time.sleep(1)
+                except Exception as e:
+                    if isinstance(e, concurrent.futures.TimeoutError):
+                        logger.error(f"GFS download timed out after {download_timeout}s for lead {lead}")
+                    else:
+                        logger.error(f"GFS download failed: {e}")
                     break
-
-        has_files = any(os.path.exists(tf) and os.path.getsize(tf) > 0 for tf in target_files)
-        if not missing_leads or has_files:
-            if not missing_leads:
-                logger.info(f"Found complete GFS run {cand}")
             else:
-                logger.info(f"Found partial GFS run {cand}")
-
-            success_ds = _process_files(target_files, domain, cand)
-            if success_ds is not None:
-                chosen_run = cand
+                logger.warning(f"GFS run {chosen_run} lead {lead} missing on AWS.")
                 break
-            else:
-                logger.error(f"Failed to process downloaded files for {cand}")
 
-    if chosen_run:
+    success_ds = _process_files(target_files, domain, chosen_run)
+    if success_ds is not None:
         logger.info(f"Selected GFS run: {chosen_run}")
         return success_ds, chosen_run
     else:
-        logger.error("No valid GFS runs found in probing window.")
+        logger.error(f"Failed to process downloaded files for {chosen_run}")
         return None, None
 
 
@@ -197,7 +190,8 @@ def _process_files(target_files, domain, init_dt):
                     pass
 
             if not parts:
-                logger.warning(f"No recognised variables found in {target_file}")
+                logger.warning(
+                    f"No recognised variables found in {target_file}")
                 continue
 
             aligned = {}
@@ -250,10 +244,12 @@ def _process_files(target_files, domain, init_dt):
             out_vars["precip"].attrs["units"] = "mm"
 
         if "u10" in combined and "v10" in combined:
-            out_vars["wind10m"] = np.sqrt(combined["u10"] ** 2 + combined["v10"] ** 2)
+            out_vars["wind10m"] = np.sqrt(
+                combined["u10"] ** 2 + combined["v10"] ** 2)
             out_vars["wind10m"].attrs["units"] = "m s-1"
         elif "10u" in combined and "10v" in combined:
-            out_vars["wind10m"] = np.sqrt(combined["10u"] ** 2 + combined["10v"] ** 2)
+            out_vars["wind10m"] = np.sqrt(
+                combined["10u"] ** 2 + combined["10v"] ** 2)
             out_vars["wind10m"].attrs["units"] = "m s-1"
 
         if "gust" in combined:

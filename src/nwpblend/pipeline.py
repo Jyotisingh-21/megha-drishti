@@ -182,6 +182,7 @@ def run_daily(
     skip_download: bool = False,
     quick: bool = False,
     max_leads: int | None = None,
+    sources: str = "",
 ):
     """
     Executes the full daily operational pipeline end-to-end.
@@ -245,30 +246,49 @@ def run_daily(
                 import nwpblend.ingest.gfs as gfs_ingest
 
                 # Fetch ECMWF
-                if "ecmwf_ifs" in expected_models:
-                    ds, _run_dt = ecmwf_ingest.probe_and_fetch(date, domain, leads, variables)
-                    if ds is not None:
-                        models["ecmwf_ifs"] = ds
-                        if len(ds.lead) < len(leads):
-                            report["warnings"].append(
-                                f"ECMWF partial run ({len(ds.lead)}/{len(leads)} leads)."
-                            )
-                    else:
-                        report["warnings"].append("ECMWF failed. Dropping from blend.")
+                if sources:
+                    expected_models = [m.strip() for m in sources.split(",") if m.strip()]
 
-                # Fetch GFS
-                if "gfs" in expected_models:
-                    ds, _run_dt = gfs_ingest.probe_and_fetch(date, domain, leads, variables)
-                    if ds is not None:
-                        models["gfs"] = ds
-                        if len(ds.lead) < len(leads):
-                            report["warnings"].append(
-                                f"GFS partial run ({len(ds.lead)}/{len(leads)} leads)."
-                            )
-                    else:
-                        report["warnings"].append("GFS failed. Dropping from blend.")
+                ingest_details = []
+                stage_status = "SUCCESS"
 
-                log_stage("ingest", t0, "SUCCESS")
+                for src in expected_models:
+                    try:
+                        if src == "ecmwf_ifs":
+                            ds, _run_dt = ecmwf_ingest.probe_and_fetch(
+                                date, domain, leads, variables
+                            )
+                        elif src == "gfs":
+                            ds, _run_dt = gfs_ingest.probe_and_fetch(date, domain, leads, variables)
+                        else:
+                            ds = None
+
+                        if ds is not None:
+                            models[src] = ds
+                            missing = [L for L in leads if L not in ds.lead.values]
+                            if missing:
+                                report["warnings"].append(
+                                    f"{src} partial run. Missing leads: {missing}"
+                                )
+                                ingest_details.append(f"{src}: PARTIAL (Missing: {missing})")
+                                if stage_status != "FAILED":
+                                    stage_status = "PARTIAL"
+                            else:
+                                ingest_details.append(f"{src}: COMPLETE")
+                        else:
+                            report["warnings"].append(f"{src} failed. Dropping from blend.")
+                            ingest_details.append(f"{src}: FAILED")
+                            stage_status = "PARTIAL"  # if some fail but we have others, the stage is partial. If all fail, it will crash in harmonise.
+                    except Exception as e:
+                        logger.error(f"{src} ingestion crashed: {e}")
+                        report["warnings"].append(f"{src} failed with exception.")
+                        ingest_details.append(f"{src}: FAILED")
+                        stage_status = "PARTIAL"
+
+                if not models:
+                    stage_status = "FAILED"
+
+                log_stage("ingest", t0, stage_status, " | ".join(ingest_details))
         except Exception as e:
             report["errors"].append(f"Ingest failed: {e}")
             log_stage("ingest", t0, "FAILED")
@@ -398,9 +418,10 @@ def run_daily(
         with open(f"data/logs/run_report_{timestamp}.json", "w") as f:
             json.dump(report, f, indent=2)
 
-        # For dashboard
-        with open("data/logs/run_report_latest.json", "w") as f:
-            json.dump(report, f, indent=2)
+        # For dashboard, only overwrite if not FAILED completely
+        if report["status"] != "FAILED":
+            with open("data/logs/run_report_latest.json", "w") as f:
+                json.dump(report, f, indent=2)
 
         logger.info(f"Pipeline finished with status: {report['status']}")
         release_lock()

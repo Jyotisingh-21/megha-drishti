@@ -37,37 +37,37 @@ def stack_models(model_datasets: dict[str, xr.Dataset], expected_models: list[st
     """
     Stacks a dict of model datasets into a single Dataset with a 'model' dimension.
     Fills missing models with NaNs and computes a boolean 'available' mask.
+    Supports varying 'lead' coordinates by taking an outer join.
     """
-    aligned = []
-
-    # Create empty dataset template for missing models
-    template_ds = None
-    for m in expected_models:
-        if m in model_datasets:
-            template_ds = model_datasets[m].copy(deep=True)
-            for v in template_ds.data_vars:
-                template_ds[v] = xr.full_like(template_ds[v], np.nan, dtype=float)
-            break
-
-    if template_ds is None:
+    valid_keys = [m for m in expected_models if m in model_datasets]
+    if not valid_keys:
         raise ValueError("No models provided to stack.")
 
+    # 1. Align all valid models to ensure consistent dimensions (e.g., missing leads filled with NaN)
+    datasets_to_align = [model_datasets[m] for m in valid_keys]
+    aligned_datasets = xr.align(*datasets_to_align, join="outer")
+    aligned_dict = {m: ds for m, ds in zip(valid_keys, aligned_datasets)}
+
+    # 2. Create empty dataset template for completely missing models based on the aligned shape
+    template_ds = aligned_datasets[0].copy(deep=True)
+    for v in template_ds.data_vars:
+        template_ds[v] = xr.full_like(template_ds[v], np.nan, dtype=float)
+
+    # 3. Assemble list of datasets in the exact order of expected_models
+    aligned = []
     for m in expected_models:
-        if m in model_datasets:
-            ds = model_datasets[m]
+        if m in aligned_dict:
+            aligned.append(aligned_dict[m])
         else:
-            ds = template_ds.copy(deep=True)
-        aligned.append(ds)
+            aligned.append(template_ds.copy(deep=True))
 
-    stacked = xr.concat(aligned, pd.Index(expected_models, name="model"), join="override")
+    # 4. Concat safely
+    stacked = xr.concat(aligned, pd.Index(expected_models, name="model"), join="outer")
 
-    # Compute available mask: (time, model)
-    # A model is available if it has at least some valid (non-NaN) data
-    # We use a proxy variable like t2m or precip.
+    # 5. Compute available mask: (time, lead, model)
+    # A model is available if it has at least some valid (non-NaN) data over spatial dims
     first_var = next(iter(stacked.data_vars.keys()))
-
-    # Has valid data over lat/lon/lead
-    reduce_dims = [d for d in stacked[first_var].dims if d not in ["time", "model"]]
+    reduce_dims = [d for d in stacked[first_var].dims if d in ["lat", "lon"]]
     available = stacked[first_var].notnull().any(dim=reduce_dims)
 
     stacked["available"] = available
