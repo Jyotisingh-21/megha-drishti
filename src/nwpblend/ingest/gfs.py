@@ -163,6 +163,9 @@ def _process_files(target_files, domain, init_dt):
     datasets = []
 
     for target_file in target_files:
+        if not os.path.exists(target_file) or os.path.getsize(target_file) == 0:
+            continue
+            
         try:
             groups = [
                 {"shortName": "t2m"},
@@ -194,8 +197,8 @@ def _process_files(target_files, domain, init_dt):
                     pass
 
             if not parts:
-                logger.error(f"No recognised variables found in {target_file}")
-                return None
+                logger.warning(f"No recognised variables found in {target_file}")
+                continue
 
             aligned = {}
             for vname, da in parts.items():
