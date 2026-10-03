@@ -13,7 +13,7 @@ def _load_data_cached(_dummy_time):
     # Dummy argument forces reload when time changes if we want, but ttl=3600 handles it
     is_demo = True
     ds = None
-    
+
     # Check archive for latest run metadata
     archives = sorted(glob.glob("data/output/archive/blend_*.nc"))
     if archives:
@@ -41,6 +41,7 @@ def _load_data_cached(_dummy_time):
             pass
 
     return ds, is_demo
+
 
 def load_data():
     return _load_data_cached(time.time() // 3600)

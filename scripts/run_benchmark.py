@@ -13,6 +13,7 @@ from nwpblend.pipeline import run_daily
 from nwpblend.truth import fetch_real_truth
 from nwpblend.verify.metrics import bias, mae, rmse
 
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--demo", action="store_true")
@@ -22,7 +23,7 @@ def main():
     logger = logging.getLogger(__name__)
 
     out_lines = []
-    
+
     if args.demo:
         logger.info("Loading demo data for benchmark...")
         try:
@@ -52,11 +53,11 @@ def main():
             test_times = times[-30:]
             truth_test = truth.sel(time=test_times)
             is_demo = True
-            
+
         except Exception as e:
             logger.error(f"Failed to load stacked models or truth. Ensure Prompt 1 is run. {e}")
             return
-            
+
     else:
         logger.info("Loading REAL stacked models...")
         try:
@@ -64,34 +65,34 @@ def main():
         except Exception as e:
             logger.error(f"Failed to load stacked models. Run fetch_history first. {e}")
             return
-            
+
         times = models.time.values
         start_date = str(pd.to_datetime(times[0]).date())
         end_date = str(pd.to_datetime(times[-1]).date())
-        
+
         logger.info(f"Models span {start_date} to {end_date}. Fetching real truth...")
         with open("configs/default.yaml") as f:
             cfg = yaml.safe_load(f)
-        domain = cfg["domain"] 
-        
+        domain = cfg["domain"]
+
         truth = fetch_real_truth(start_date, end_date, domain)
         if truth is None:
             logger.error("Failed to fetch real truth.")
             return
-            
+
         truth_times = truth.time.values
         # Strip timezone from model times if any
         model_times = pd.to_datetime(times).tz_localize(None).values
         intersect_times = np.intersect1d(model_times, truth_times)
-        
+
         if len(intersect_times) == 0:
             logger.error("No overlap between model history and available truth.")
             return
-            
+
         logger.info(f"Scoring {len(intersect_times)} overlapping days.")
         test_times = intersect_times
         truth_test = truth.sel(time=test_times)
-        
+
         # Align models to the same times
         models["time"] = model_times
         models = models.sel(time=test_times).load()
@@ -222,7 +223,7 @@ def main():
                 "data_mode": "synthetic" if is_demo else "real",
                 "start_date": str(start_date) if not is_demo else None,
                 "end_date": str(end_date) if not is_demo else None,
-                "scored_days": len(test_times)
+                "scored_days": len(test_times),
             },
             "blend_rmse_change_pct": blend_rmse_change,
             "ablation": ablation_df.to_dict(orient="records"),

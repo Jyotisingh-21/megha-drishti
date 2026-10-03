@@ -41,7 +41,9 @@ st.write("Tracks systematic errors and biases in individual models over time.")
 # Compute real drift instead of mock
 ds, is_demo = load_data()
 
-st.sidebar.warning("RUNNING IN DEMO MODE") if is_demo else st.sidebar.success("RUNNING IN REAL MODE")
+st.sidebar.warning("RUNNING IN DEMO MODE") if is_demo else st.sidebar.success(
+    "RUNNING IN REAL MODE"
+)
 truth_file = "data/demo/truth.zarr" if is_demo else "data/processed/truth.zarr"
 
 if os.path.exists(truth_file) and "model" in ds.dims:

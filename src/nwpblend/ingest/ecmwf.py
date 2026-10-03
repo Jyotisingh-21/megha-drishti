@@ -193,7 +193,7 @@ def _process_file(target_file, domain, init_dt):
         for vname, da in parts.items():
             if "valid_time" in da.coords:
                 da = da.drop_vars("valid_time")
-                
+
             if "step" in da.dims and primary_step is not None:
                 # Re-index to primary step, filling with NaN where missing
                 da = da.reindex(step=primary_step, method=None)

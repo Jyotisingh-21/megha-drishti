@@ -28,9 +28,16 @@ def run_ablation(models: xr.Dataset, truth: xr.Dataset, avail: xr.DataArray) -> 
     we split 50/50 for train/test to evaluate the data.
     """
     times = models.time.values
-    split_idx = len(times) // 2
-    train_times = times[:split_idx]
-    test_times = times[split_idx:]
+    if len(times) == 1:
+        logger.warning(
+            "Only 1 day of data available. Using same day for train and test (in-sample)."
+        )
+        train_times = times
+        test_times = times
+    else:
+        split_idx = len(times) // 2
+        train_times = times[:split_idx]
+        test_times = times[split_idx:]
 
     if len(test_times) < 10:
         logger.warning("Dataset too small for a meaningful ablation study.")
