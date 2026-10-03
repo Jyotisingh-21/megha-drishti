@@ -51,7 +51,24 @@ def probe_and_fetch(target_date, domain, leads, variables):
         if "gust10m" in variables:
             gfs_vars.append(":GUST:surface:")
 
+        try:
+            import yaml
+
+            with open("configs/default.yaml", "r") as f:
+                config = yaml.safe_load(f)
+        except Exception:
+            config = {}
+        time_budget = config.get("source_time_budget", 1800)
+        import time
+
+        t_start_source = time.time()
+
         for lead in leads:
+            if time.time() - t_start_source > time_budget:
+                logger.warning(f"Time budget of {time_budget}s exhausted for GFS.")
+                missing_leads = True
+                break
+
             lead_str = f"{lead:03d}"
             target_file = os.path.join(archive_dir, f"raw_f{lead_str}.grib")
             target_files.append(target_file)
@@ -91,15 +108,21 @@ def probe_and_fetch(target_date, domain, leads, variables):
                         import yaml
 
                         try:
+                            import yaml
+
                             with open("configs/default.yaml", "r") as f:
                                 config = yaml.safe_load(f)
                         except Exception:
                             config = {}
                         download_timeout = config.get("download_timeout", 30)
 
-                        executor = concurrent.futures.ThreadPoolExecutor(max_workers=10)
+                        executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
                         future = executor.submit(do_fetch, idx_path, gfs_vars, s3_path, target_file)
                         future.result(timeout=download_timeout)
+
+                        import time
+
+                        time.sleep(2)
                     except Exception as e:
                         if isinstance(e, concurrent.futures.TimeoutError):
                             logger.error(
@@ -114,8 +137,13 @@ def probe_and_fetch(target_date, domain, leads, variables):
                     missing_leads = True
                     break
 
-        if not missing_leads:
-            logger.info(f"Found complete GFS run {cand}")
+        has_files = any(os.path.exists(tf) and os.path.getsize(tf) > 0 for tf in target_files)
+        if not missing_leads or has_files:
+            if not missing_leads:
+                logger.info(f"Found complete GFS run {cand}")
+            else:
+                logger.info(f"Found partial GFS run {cand}")
+
             success_ds = _process_files(target_files, domain, cand)
             if success_ds is not None:
                 chosen_run = cand
@@ -195,7 +223,7 @@ def _process_files(target_files, domain, init_dt):
             datasets.append(ds_subset)
         except Exception as e:
             logger.error(f"Failed to process GFS file {target_file}: {e}")
-            return None
+            continue
 
     if not datasets:
         return None

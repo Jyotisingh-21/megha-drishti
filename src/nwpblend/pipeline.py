@@ -68,7 +68,14 @@ def release_lock():
         os.remove(lockfile)
 
 
-def run_daily(date: str, domain: dict, demo: bool = False, skip_download: bool = False, quick: bool = False, max_leads: int | None = None):
+def run_daily(
+    date: str,
+    domain: dict,
+    demo: bool = False,
+    skip_download: bool = False,
+    quick: bool = False,
+    max_leads: int | None = None,
+):
     """
     Executes the full daily operational pipeline end-to-end.
     """
@@ -109,9 +116,6 @@ def run_daily(date: str, domain: dict, demo: bool = False, skip_download: bool =
             leads = [24, 48, 72]
         if max_leads:
             leads = leads[:max_leads]
-        
-        
-
 
         cleanup_archive(config)
 
@@ -139,7 +143,9 @@ def run_daily(date: str, domain: dict, demo: bool = False, skip_download: bool =
                     if ds is not None:
                         models["ecmwf_ifs"] = ds
                         if len(ds.lead) < len(leads):
-                            report["warnings"].append(f"ECMWF partial run ({len(ds.lead)}/{len(leads)} leads).")
+                            report["warnings"].append(
+                                f"ECMWF partial run ({len(ds.lead)}/{len(leads)} leads)."
+                            )
                     else:
                         report["warnings"].append("ECMWF failed. Dropping from blend.")
 
@@ -149,7 +155,9 @@ def run_daily(date: str, domain: dict, demo: bool = False, skip_download: bool =
                     if ds is not None:
                         models["gfs"] = ds
                         if len(ds.lead) < len(leads):
-                            report["warnings"].append(f"GFS partial run ({len(ds.lead)}/{len(leads)} leads).")
+                            report["warnings"].append(
+                                f"GFS partial run ({len(ds.lead)}/{len(leads)} leads)."
+                            )
                     else:
                         report["warnings"].append("GFS failed. Dropping from blend.")
 
