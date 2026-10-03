@@ -16,24 +16,26 @@ def main():
     parser.add_argument("--demo", action="store_true", help="Run in offline synthetic demo mode")
     parser.add_argument("--skip-download", action="store_true", help="Skip downloading fresh data")
     parser.add_argument("--domain", type=str, default="india", help="Domain preset")
+    parser.add_argument("--quick", action="store_true", help="Run quickly (leads 24, 48, 72)")
+    parser.add_argument("--max-leads", type=int, default=None, help="Max leads to fetch")
 
     args = parser.parse_args()
 
-    import sys
     import os
-    
+    import sys
+
     os.makedirs("data/logs", exist_ok=True)
     timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
     log_file = f"data/logs/run_{timestamp}.log"
-    
+
     logger = logging.getLogger()
     logger.setLevel(logging.INFO)
     formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s")
-    
+
     sh = logging.StreamHandler(sys.stdout)
     sh.setFormatter(formatter)
     logger.addHandler(sh)
-    
+
     fh = logging.FileHandler(log_file)
     fh.setFormatter(formatter)
     logger.addHandler(fh)
@@ -53,7 +55,14 @@ def main():
     if "resolution" not in domain:
         domain["resolution"] = 0.25
 
-    run_daily(date=args.date, domain=domain, demo=args.demo, skip_download=args.skip_download)
+    run_daily(
+        date=args.date,
+        domain=domain,
+        demo=args.demo,
+        skip_download=args.skip_download,
+        quick=args.quick,
+        max_leads=args.max_leads,
+    )
 
 
 if __name__ == "__main__":
