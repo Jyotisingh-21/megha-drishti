@@ -211,3 +211,7 @@ MIT License (see `LICENSE` file). Built for Smart India Hackathon 2026, PS 26081
 - **DataMeet**: Boundary data sourced from the DataMeet community (CC-BY-2.5-IN).
 
 See [docs/DATA_LICENCES.md](docs/DATA_LICENCES.md) for full licensing details.
+ 
+ # #   K n o w n   L i m i t a t i o n s  
+ -   * * E C M W F   0 . 1 °   L a y o u t * * :   P r e p a r e d   b u t   n o t   v e r i f i e d   a g a i n s t   l i v e   f i l e s .   ( T O D O :   R e - t e s t   a r e a - a v e r a g i n g   c o n s e r v a t i v e   r e g r i d d i n g   w h e n   E C M W F   f u l l y   s w i t c h e s   t o   0 . 1 °   O p e n   D a t a ) .  
+ 

@@ -278,9 +278,8 @@ def _process_file(target_file, domain, init_dt):
         ds = ds.sel(latitude=lat_slice, longitude=lon_slice)
 
         # --- Regrid to pipeline grid ----------------------------------------
-        new_lats = np.arange(domain["lat_max"], domain["lat_min"] - 0.01, -domain["resolution"])
-        new_lons = np.arange(domain["lon_min"], domain["lon_max"] + 0.01, domain["resolution"])
-        ds = ds.interp(latitude=new_lats, longitude=new_lons, method="linear")
+        from nwpblend.ingest.regrid import regrid_dataset
+        ds = regrid_dataset(ds, domain)
 
         # --- Rename to canonical schema -------------------------------------
         ds = ds.rename({"latitude": "lat", "longitude": "lon"})

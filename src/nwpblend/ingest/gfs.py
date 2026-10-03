@@ -218,10 +218,9 @@ def _process_files(target_files, domain, init_dt):
                 lat_slice = slice(domain["lat_min"] - 1, domain["lat_max"] + 1)
 
             ds_subset = ds.sel(latitude=lat_slice, longitude=lon_slice)
-
-            new_lats = np.arange(domain["lat_max"], domain["lat_min"] - 0.01, -domain["resolution"])
-            new_lons = np.arange(domain["lon_min"], domain["lon_max"] + 0.01, domain["resolution"])
-            ds_subset = ds_subset.interp(latitude=new_lats, longitude=new_lons, method="linear")
+            
+            from nwpblend.ingest.regrid import regrid_dataset
+            ds_subset = regrid_dataset(ds_subset, domain)
 
             datasets.append(ds_subset)
         except Exception as e:
