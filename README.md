@@ -201,4 +201,13 @@ For Linux, add the following to your crontab (crontab -e):
 
 ## 12. License and acknowledgements
 
-MIT License (add a `LICENSE` file). Built for Smart India Hackathon 2026, PS 26081, Ministry of Earth Sciences (NCMRWF). Uses ECMWF Open Data (CC-BY-4.0), NOAA GFS, Copernicus ERA5, IMD and NASA GPM-IMERG. Check each provider's terms before redistributing data.
+MIT License (see `LICENSE` file). Built for Smart India Hackathon 2026, PS 26081, Ministry of Earth Sciences (NCMRWF).
+
+**Data Attribution**:
+- **ECMWF Open Data**: Contains modified ECMWF information. This information is published by ECMWF under a CC-BY-4.0 licence.
+- **NOAA GFS**: Accessed via the NOAA Big Data Program.
+- **Copernicus ARCO-ERA5**: Contains modified Copernicus Climate Change Service information (CC-BY-4.0).
+- **IMD**: Data provided by the India Meteorological Department.
+- **DataMeet**: Boundary data sourced from the DataMeet community (CC-BY-2.5-IN).
+
+See [docs/DATA_LICENCES.md](docs/DATA_LICENCES.md) for full licensing details.

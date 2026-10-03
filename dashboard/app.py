@@ -51,6 +51,11 @@ with st.sidebar:
         **Sources:** ECMWF Open Data, NOAA GFS, AI models.
         **Versions:** NWP v2024, AI models v1.
         **Training Window:** 2023-2024 Monsoon.
+        **Data Attribution:** 
+        Contains modified ECMWF information (CC-BY-4.0).
+        Contains modified Copernicus Climate Change Service information (CC-BY-4.0).
+        GFS data via NOAA Big Data Program.
+        Boundary data sourced from DataMeet (CC-BY-2.5-IN).
         **Limitations:**
         - DEMO mode runs on synthetic statistical data.
         - The India boundary map is a provisional community dataset and has NOT been validated by the Survey of India.
