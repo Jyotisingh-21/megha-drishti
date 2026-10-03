@@ -19,7 +19,25 @@ def main():
     parser.add_argument("--demo", action="store_true")
     args = parser.parse_args()
 
-    logging.basicConfig(level=logging.INFO)
+    import sys
+    from datetime import datetime, UTC
+    
+    os.makedirs("data/logs", exist_ok=True)
+    timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
+    log_file = f"data/logs/benchmark_{timestamp}.log"
+    
+    logger = logging.getLogger()
+    logger.setLevel(logging.INFO)
+    formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s")
+    
+    sh = logging.StreamHandler(sys.stdout)
+    sh.setFormatter(formatter)
+    logger.addHandler(sh)
+    
+    fh = logging.FileHandler(log_file)
+    fh.setFormatter(formatter)
+    logger.addHandler(fh)
+    
     logger = logging.getLogger(__name__)
 
     out_lines = []
